@@ -2,7 +2,7 @@
 
 Core library powering Bonadocs applications. This library is designed for internal
 use only and is not intended to be used directly. Instead, use the `@bonadocs/cli`
-to manage your documentation and widgets.
+or the web editor at https://bonadocs.com to manage your documentation and widgets.
 
 ## Features
 

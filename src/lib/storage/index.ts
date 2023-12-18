@@ -9,12 +9,15 @@ let localCollectionNameStore: StorageAPI | null = null
 
 export async function getCollectionStore(
   collectionId: string,
-  collectionName: string,
+  collectionName?: string,
 ): Promise<StorageAPI> {
   if (!collectionStores[collectionId]) {
     collectionStores[collectionId] = await createCollectionStore(collectionId)
   }
-  storeCollectionIdAndName(collectionId, collectionName)
+
+  if (collectionName) {
+    storeCollectionIdAndName(collectionId, collectionName)
+  }
   return collectionStores[collectionId]
 }
 
@@ -30,10 +33,23 @@ export async function getLocalCollectionNames(): Promise<
   return JSON.parse(names)
 }
 
+export function deleteLocalCollectionName(collectionId: string) {
+  getLocalCollectionNames()
+    .then(async (names) => {
+      delete names[collectionId]
+
+      const store = await getLocalCollectionNameStore()
+      return await store.set('collectionNames', JSON.stringify(names))
+    })
+    .catch((error) => {
+      console.error(error)
+    })
+}
+
 async function createCollectionStore(
   collectionId: string,
 ): Promise<StorageAPI> {
-  if (typeof window?.indexedDB === 'object') {
+  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
     return new IndexedDBStorage('bonadocs', `collections-${collectionId}`)
   }
 
@@ -66,7 +82,7 @@ async function getLocalCollectionNameStore(): Promise<StorageAPI> {
 }
 
 async function createLocalCollectionNameStore(): Promise<StorageAPI> {
-  if (typeof window?.indexedDB === 'object') {
+  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
     return new IndexedDBStorage('bonadocs', 'collections')
   }
 

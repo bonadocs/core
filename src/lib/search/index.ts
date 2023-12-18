@@ -32,7 +32,7 @@ export interface QuickSearchItem {
 /**
  * Represents a link in a protocol metadata.
  */
-export interface Link {
+export interface SearchItemLink {
   label: string
   imgURI: string
   url: string
@@ -50,7 +50,7 @@ export interface DeepSearchItem {
   logo: string
   tags: string[]
   chainIds: number[]
-  links: Link[]
+  links: SearchItemLink[]
 }
 
 const namesFile = '/names.txt'

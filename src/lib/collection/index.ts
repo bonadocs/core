@@ -1,3 +1,4 @@
+import { getCollectionStore } from '../../../build/main'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout, saveToIPFS } from '../ipfs'
 import { jsonUtils } from '../util'
@@ -84,6 +85,15 @@ export class Collection {
     const collection = new Collection(data.name, data.description)
     collection.#data = data
     return collection
+  }
+
+  static async createFromLocalStore(id: string) {
+    const store = await getCollectionStore(id)
+    const snapshot = await store.get('data')
+    if (!snapshot) {
+      throw new Error(`Collection ${id} not found`)
+    }
+    return this.createFromSnapshot(snapshot)
   }
 
   /**

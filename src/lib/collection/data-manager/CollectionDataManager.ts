@@ -57,14 +57,14 @@ export class CollectionDataManager {
     const data = this.#data
     this.#eventEmitter.on('*', {
       async process() {
-        const collectionStore = await getCollectionStore(data.id)
+        const collectionStore = await getCollectionStore(data.id, data.name)
         await collectionStore.set(
           'data',
           JSON.stringify(data, jsonUtils.replacer),
         )
       },
       async undo() {
-        const collectionStore = await getCollectionStore(data.id)
+        const collectionStore = await getCollectionStore(data.id, data.name)
         await collectionStore.set(
           'data',
           JSON.stringify(data, jsonUtils.replacer),

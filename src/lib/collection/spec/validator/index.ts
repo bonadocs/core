@@ -208,8 +208,16 @@ export function validateCollection(
     result.errors.push('Collection description is required')
   }
 
+  for (const link of collection.links || []) {
+    validateLink(link, result)
+  }
+
+  for (const variable of collection.variables || []) {
+    validateVariable(variable, result)
+  }
+
   if (!collection.contractInterfaces?.length) {
-    result.errors.push('There are no contract interfaces in the collection')
+    result.warnings.push('There are no contract interfaces in the collection')
     return result
   }
 
@@ -218,12 +226,8 @@ export function validateCollection(
   }
 
   if (!collection.contracts?.length) {
-    result.errors.push('There are no contracts in the collection')
+    result.warnings.push('There are no contracts in the collection')
     return result
-  }
-
-  for (const link of collection.links || []) {
-    validateLink(link, result)
   }
 
   for (const contract of collection.contracts || []) {
@@ -247,10 +251,6 @@ export function validateCollection(
 
   for (const workflow of collection.workflows || []) {
     validateWorkflow(workflow, contracts, result)
-  }
-
-  for (const variable of collection.variables || []) {
-    validateVariable(variable, result)
   }
   return result
 }

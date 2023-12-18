@@ -20,6 +20,17 @@ export class CollectionDataManager {
     await this.#eventEmitter.emit(event)
   }
 
+  async save() {
+    const collectionStore = await getCollectionStore(
+      this.data.id,
+      this.data.name,
+    )
+    await collectionStore.set(
+      'data',
+      JSON.stringify(this.data, jsonUtils.replacer),
+    )
+  }
+
   on<TEvent extends EventType, TEventData>(
     type: TEvent,
     listener: EventListener<TEvent, TEventData>,
@@ -54,21 +65,13 @@ export class CollectionDataManager {
    * @private
    */
   private setupUpdatePersistence() {
-    const data = this.#data
+    const save = this.save.bind(this)
     this.#eventEmitter.on('*', {
-      async process() {
-        const collectionStore = await getCollectionStore(data.id, data.name)
-        await collectionStore.set(
-          'data',
-          JSON.stringify(data, jsonUtils.replacer),
-        )
+      process() {
+        return save()
       },
       async undo() {
-        const collectionStore = await getCollectionStore(data.id, data.name)
-        await collectionStore.set(
-          'data',
-          JSON.stringify(data, jsonUtils.replacer),
-        )
+        return save()
       },
     })
   }

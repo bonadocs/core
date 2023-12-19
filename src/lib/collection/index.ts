@@ -1,6 +1,6 @@
-import { getCollectionStore } from '../../../build/main'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout, saveToIPFS } from '../ipfs'
+import { getCollectionStore } from '../storage'
 import { jsonUtils } from '../util'
 
 import { CollectionDataManager } from './data-manager'

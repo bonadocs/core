@@ -4,6 +4,7 @@ type SpecApiConfig = {
 }
 
 export type ChainConfig = {
+  name: string
   chainId: number
   networkId: number
   jsonRpcUrl: string
@@ -14,6 +15,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     56,
     {
+      name: 'Binance Smart Chain',
       chainId: 56,
       networkId: 56,
       jsonRpcUrl: 'https://bsc-dataseed.binance.org',
@@ -28,6 +30,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1,
     {
+      name: 'Ethereum',
       chainId: 1,
       networkId: 1,
       jsonRpcUrl: 'https://eth.llamarpc.com',
@@ -42,6 +45,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     250,
     {
+      name: 'Fantom',
       chainId: 250,
       networkId: 250,
       jsonRpcUrl: 'https://rpcapi.fantom.network',
@@ -56,6 +60,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     10,
     {
+      name: 'Optimism',
       chainId: 10,
       networkId: 10,
       jsonRpcUrl: 'https://mainnet.optimism.io',
@@ -70,6 +75,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     42161,
     {
+      name: 'Arbitrum',
       chainId: 42161,
       networkId: 42161,
       jsonRpcUrl: 'https://arb1.arbitrum.io/rpc',
@@ -84,6 +90,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     43114,
     {
+      name: 'Avalanche',
       chainId: 43114,
       networkId: 43114,
       jsonRpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
@@ -98,6 +105,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     137,
     {
+      name: 'Polygon',
       chainId: 137,
       networkId: 137,
       jsonRpcUrl: 'https://polygon.llamarpc.com',
@@ -112,6 +120,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     42220,
     {
+      name: 'Celo',
       chainId: 42220,
       networkId: 42220,
       jsonRpcUrl: 'https://forno.celo.org',
@@ -126,6 +135,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     100,
     {
+      name: 'Gnosis',
       chainId: 100,
       networkId: 100,
       jsonRpcUrl: 'https://rpc.gnosischain.com',
@@ -140,6 +150,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     5,
     {
+      name: 'Ethereum Goerli',
       chainId: 5,
       networkId: 5,
       jsonRpcUrl: 'https://rpc.ankr.com/eth_goerli',
@@ -154,6 +165,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     97,
     {
+      name: 'Binance Smart Chain Testnet',
       chainId: 97,
       networkId: 97,
       jsonRpcUrl: 'https://bsc-testnet.publicnode.com',
@@ -168,6 +180,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     199,
     {
+      name: 'BitTorrent',
       chainId: 199,
       networkId: 199,
       jsonRpcUrl: 'https://rpc.bittorrentchain.io',
@@ -182,6 +195,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1101,
     {
+      name: 'Polygon zkEVM',
       chainId: 1101,
       networkId: 1101,
       jsonRpcUrl: 'https://rpc.ankr.com/polygon_zkevm',
@@ -196,6 +210,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     4002,
     {
+      name: 'Fantom Testnet',
       chainId: 4002,
       networkId: 4002,
       jsonRpcUrl: 'https://rpc.testnet.fantom.network',
@@ -210,6 +225,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     43113,
     {
+      name: 'Avalanche Testnet',
       chainId: 43113,
       networkId: 1,
       jsonRpcUrl: 'https://api.avax-test.network/ext/bc/C/rpc',
@@ -224,6 +240,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     44787,
     {
+      name: 'Celo Alfajores',
       chainId: 44787,
       networkId: 44787,
       jsonRpcUrl: 'https://alfajores-forno.celo-testnet.org',
@@ -238,6 +255,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     80001,
     {
+      name: 'Polygon Mumbai',
       chainId: 80001,
       networkId: 80001,
       jsonRpcUrl: 'https://polygon-mumbai-bor.publicnode.com',
@@ -252,6 +270,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     421613,
     {
+      name: 'Arbitrum Goerli',
       chainId: 421613,
       networkId: 421613,
       jsonRpcUrl: 'https://arbitrum-goerli.publicnode.com',
@@ -266,6 +285,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     11155111,
     {
+      name: 'Sepolia',
       chainId: 11155111,
       networkId: 11155111,
       jsonRpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/demo',
@@ -280,6 +300,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     8453,
     {
+      name: 'Base',
       chainId: 8453,
       networkId: 8453,
       jsonRpcUrl: 'https://base.publicnode.com',
@@ -294,6 +315,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1284,
     {
+      name: 'Moonbeam',
       chainId: 1284,
       networkId: 1284,
       jsonRpcUrl: 'https://rpc.api.moonbeam.network',
@@ -308,6 +330,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1285,
     {
+      name: 'Moonriver',
       chainId: 1285,
       networkId: 1285,
       jsonRpcUrl: 'https://rpc.api.moonriver.moonbeam.network',
@@ -322,6 +345,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1313161554,
     {
+      name: 'Aurora',
       chainId: 1313161554,
       networkId: 1313161554,
       jsonRpcUrl: 'https://mainnet.aurora.dev',
@@ -336,6 +360,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     9001,
     {
+      name: 'Evmos',
       chainId: 9001,
       networkId: 9001,
       jsonRpcUrl: 'https://evmos.lava.build',
@@ -345,6 +370,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1666600000,
     {
+      name: 'Harmony',
       chainId: 1666600000,
       networkId: 1666600000,
       jsonRpcUrl: 'https://api.harmony.one',
@@ -354,6 +380,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     288,
     {
+      name: 'Boba',
       chainId: 288,
       networkId: 288,
       jsonRpcUrl: 'https://mainnet.boba.network',
@@ -369,6 +396,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     2000,
     {
+      name: 'Dogechain',
       chainId: 2000,
       networkId: 2000,
       jsonRpcUrl: 'https://rpc.dogechain.dog',
@@ -383,6 +411,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     324,
     {
+      name: 'ZkSync Era',
       chainId: 324,
       networkId: 324,
       jsonRpcUrl: 'https://mainnet.era.zksync.io',
@@ -397,6 +426,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     59144,
     {
+      name: 'Linea',
       chainId: 59144,
       networkId: 59144,
       jsonRpcUrl: 'https://rpc.linea.build',
@@ -411,6 +441,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     204,
     {
+      name: 'Optimism BNB',
       chainId: 204,
       networkId: 204,
       jsonRpcUrl: 'https://opbnb.publicnode.com',
@@ -420,6 +451,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     1088,
     {
+      name: 'Metis',
       chainId: 1088,
       networkId: 1088,
       jsonRpcUrl: 'https://andromeda.metis.io/?owner=1088',
@@ -434,6 +466,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     2222,
     {
+      name: 'Kava',
       chainId: 2222,
       networkId: 2222,
       jsonRpcUrl: 'https://evm.kava.io',
@@ -448,6 +481,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     42170,
     {
+      name: 'Arbitrum Nova',
       chainId: 42170,
       networkId: 42170,
       jsonRpcUrl: 'https://nova.arbitrum.io/rpc',
@@ -462,6 +496,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     43288,
     {
+      name: 'Boba Avax',
       chainId: 43288,
       networkId: 43288,
       jsonRpcUrl: 'https://avax.boba.network',
@@ -476,6 +511,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     56288,
     {
+      name: 'Boba BNB',
       chainId: 56288,
       networkId: 56288,
       jsonRpcUrl: 'https://bnb.boba.network',
@@ -490,6 +526,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     122,
     {
+      name: 'Fuse',
       chainId: 122,
       networkId: 122,
       jsonRpcUrl: 'https://rpc.fuse.io',
@@ -504,6 +541,7 @@ export const supportedChains = new Map<number, ChainConfig>([
   [
     128,
     {
+      name: 'Heco',
       chainId: 128,
       networkId: 128,
       jsonRpcUrl: 'https://http-mainnet.hecochain.com',

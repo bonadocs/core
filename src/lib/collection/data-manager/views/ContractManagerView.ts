@@ -44,6 +44,14 @@ export class ContractManagerView {
     return this.#contractDefinitions.get(id)
   }
 
+  get contracts() {
+    return this.#contractDefinitions.values()
+  }
+
+  get interfaces() {
+    return this.#contractInterfaces.values()
+  }
+
   async addContractInterface(contractInterface: ContractInterface) {
     const event: AddCollectionContractInterfaceEvent = {
       type: 'collection:add-contract-interface',

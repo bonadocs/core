@@ -1,12 +1,28 @@
-﻿import { getCollectionStore } from '../../storage'
+﻿import { FunctionFragment } from 'ethers'
+
+import { getCollectionStore } from '../../storage'
 import { jsonUtils } from '../../util'
 import { Event, EventEmitter, EventListener, EventType } from '../events'
 import { CollectionData } from '../spec'
 
 import { registerDataUpdateListeners } from './events'
+import {
+  CollectionEnvironmentManagerView,
+  CollectionMetadataView,
+  ContractDetailsView,
+  ContractManagerView,
+  FunctionFragmentView,
+  ValueManagerView,
+} from './views'
 export class CollectionDataManager {
   readonly #data: CollectionData
   readonly #eventEmitter: EventEmitter
+  #environmentManagerView: CollectionEnvironmentManagerView | undefined
+  #metadataView: CollectionMetadataView | undefined
+  #contractManagerView: ContractManagerView | undefined
+  #valueManagerView: ValueManagerView | undefined
+  #contractDetailsViews = new Map<string, ContractDetailsView>()
+  #functionFragmentViews = new Map<string, Map<string, FunctionFragmentView>>()
 
   constructor(data: CollectionData) {
     this.#data = data
@@ -48,6 +64,78 @@ export class CollectionDataManager {
    */
   get data() {
     return this.#data
+  }
+
+  get environmentManagerView() {
+    if (!this.#environmentManagerView) {
+      this.#environmentManagerView = new CollectionEnvironmentManagerView(this)
+    }
+    return this.#environmentManagerView
+  }
+
+  get metadataView() {
+    if (!this.#metadataView) {
+      this.#metadataView = new CollectionMetadataView(this)
+    }
+    return this.#metadataView
+  }
+
+  get contractManagerView() {
+    if (!this.#contractManagerView) {
+      this.#contractManagerView = new ContractManagerView(this)
+    }
+    return this.#contractManagerView
+  }
+
+  get valueManagerView() {
+    if (!this.#valueManagerView) {
+      this.#valueManagerView = new ValueManagerView(this)
+    }
+    return this.#valueManagerView
+  }
+
+  getContractDetailsView(contractId: string) {
+    let view = this.#contractDetailsViews.get(contractId)
+    if (!view) {
+      view = new ContractDetailsView(this, contractId)
+      this.#contractDetailsViews.set(contractId, view)
+    }
+    return view
+  }
+
+  async getFunctionFragmentView(contractId: string, fragmentKey: string) {
+    let contractViews = this.#functionFragmentViews.get(contractId)
+    if (!contractViews) {
+      contractViews = new Map<string, FunctionFragmentView>()
+      this.#functionFragmentViews.set(contractId, contractViews)
+    }
+
+    let view = contractViews.get(fragmentKey)
+    if (!view) {
+      view = await this.createFunctionFragmentView(contractId, fragmentKey)
+      if (view) {
+        contractViews.set(fragmentKey, view)
+      }
+    }
+
+    return view
+  }
+
+  private async createFunctionFragmentView(
+    contractId: string,
+    fragmentKey: string,
+  ) {
+    const contractDetailsView = this.getContractDetailsView(contractId)
+    const fragment = contractDetailsView.getFragment(fragmentKey)
+    if (fragment?.fragment instanceof FunctionFragment) {
+      return FunctionFragmentView.create(
+        this.valueManagerView,
+        contractId,
+        fragment.fragment,
+      )
+    }
+
+    return undefined
   }
 
   /**

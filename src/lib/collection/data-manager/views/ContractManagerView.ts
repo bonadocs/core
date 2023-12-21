@@ -1,7 +1,8 @@
-﻿import { Interface } from 'ethers'
+﻿import { Interface, sha256, toUtf8Bytes } from 'ethers'
 
 import { CollectionDataManager } from '../'
 import { ContractDefinition, ContractInterface } from '../../spec'
+import { generateContractId } from '../../util'
 import {
   AddCollectionContractEvent,
   AddCollectionContractInstanceEvent,
@@ -17,7 +18,8 @@ import { CallbackListener, createEventListener } from './util'
 
 export class ContractManagerView {
   readonly #dataManager: CollectionDataManager
-  readonly #contractInterfaces: Map<string, Interface>
+  readonly #ethersContractInterfaces: Map<string, Interface>
+  readonly #contractInterfaces: Map<string, ContractInterface>
   readonly #contractDefinitions: Map<string, ContractDefinition>
 
   #onContractInterfaceAdded: CallbackListener
@@ -32,11 +34,17 @@ export class ContractManagerView {
   constructor(dataManager: CollectionDataManager) {
     this.#dataManager = dataManager
     this.#contractDefinitions = new Map<string, ContractDefinition>()
-    this.#contractInterfaces = new Map<string, Interface>()
+    this.#contractInterfaces = new Map<string, ContractInterface>()
+    this.#ethersContractInterfaces = new Map<string, Interface>()
     this.setupEventListeners()
+    this.resetInternalDataStructures()
   }
 
   getInterface(hash: string) {
+    return this.#ethersContractInterfaces.get(hash)
+  }
+
+  getContractInterface(hash: string) {
     return this.#contractInterfaces.get(hash)
   }
 
@@ -52,7 +60,13 @@ export class ContractManagerView {
     return this.#contractInterfaces.values()
   }
 
-  async addContractInterface(contractInterface: ContractInterface) {
+  async addContractInterface(name: string, abi: string) {
+    abi = normalizeABI(abi)
+    const contractInterface = {
+      hash: sha256(toUtf8Bytes(abi)).slice(2),
+      abi: abi,
+      name: name,
+    }
     const event: AddCollectionContractInterfaceEvent = {
       type: 'collection:add-contract-interface',
       data: {
@@ -62,6 +76,7 @@ export class ContractManagerView {
     }
 
     await this.#dataManager.emit(event)
+    return contractInterface.hash
   }
 
   async removeContractInterface(contractInterfaceHash: string) {
@@ -94,6 +109,12 @@ export class ContractManagerView {
     chainId: number,
     address: string,
   ) {
+    if (!contract.id) {
+      contract.id = generateContractId(
+        this.#dataManager.id,
+        contract.interfaceHash,
+      )
+    }
     const addContractEvent: AddCollectionContractEvent = {
       type: 'collection:add-contract',
       data: {
@@ -215,14 +236,16 @@ export class ContractManagerView {
   }
 
   private resetInternalDataStructures() {
+    this.#ethersContractInterfaces.clear()
     this.#contractInterfaces.clear()
     this.#contractDefinitions.clear()
 
     for (const contractInterface of this.#dataManager.data.contractInterfaces) {
-      this.#contractInterfaces.set(
+      this.#ethersContractInterfaces.set(
         contractInterface.hash,
         new Interface(contractInterface.abi),
       )
+      this.#contractInterfaces.set(contractInterface.hash, contractInterface)
     }
 
     for (const contract of this.#dataManager.data.contracts) {
@@ -232,6 +255,7 @@ export class ContractManagerView {
 
   private setupViewDataUpdateListeners() {
     const contractDefinitions = this.#contractDefinitions
+    const ethersContractInterfaces = this.#ethersContractInterfaces
     const contractInterfaces = this.#contractInterfaces
     const resetInternalDataStructures =
       this.resetInternalDataStructures.bind(this)
@@ -239,9 +263,13 @@ export class ContractManagerView {
       process(
         event: AddCollectionContractInterfaceEvent,
       ): void | Promise<void> {
-        contractInterfaces.set(
+        ethersContractInterfaces.set(
           event.data.contractInterface.hash,
           new Interface(event.data.contractInterface.abi),
+        )
+        contractInterfaces.set(
+          event.data.contractInterface.hash,
+          event.data.contractInterface,
         )
       },
       undo(): void | Promise<void> {
@@ -252,6 +280,7 @@ export class ContractManagerView {
       process(
         event: RemoveCollectionContractInterfaceEvent,
       ): void | Promise<void> {
+        ethersContractInterfaces.delete(event.data.contractInterfaceHash)
         contractInterfaces.delete(event.data.contractInterfaceHash)
       },
       undo(): void | Promise<void> {
@@ -362,4 +391,16 @@ export class ContractManagerView {
       createEventListener(() => this.#onContractInstanceRemoved),
     )
   }
+}
+
+/**
+ * Normalizes an ABI by removing duplicate entries.
+ * @param abi
+ */
+function normalizeABI(abi: string): string {
+  return JSON.stringify(
+    [...new Set(JSON.parse(abi).map(JSON.stringify))]
+      .sort()
+      .map((s) => JSON.parse(s as string)),
+  )
 }

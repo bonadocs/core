@@ -531,6 +531,16 @@ class RemoveCollectionContractInstanceEventListener
       this.previousInstance = contract.instances[index]
       contract.instances.splice(index, 1)
     }
+
+    // remove the contract if it has no instances
+    if (contract.instances.length === 0) {
+      this.collectionData.contracts.splice(
+        this.collectionData.contracts.findIndex(
+          (contract) => contract.id === event.data.contractId,
+        ),
+        1,
+      )
+    }
   }
 
   undo(event: RemoveCollectionContractInstanceEvent) {

@@ -8,13 +8,13 @@ export function generateContractId(
   collectionId: string,
   interfaceHash: string,
 ): string {
-  return generateRandomId([collectionId, interfaceHash])
+  return generateId([collectionId, interfaceHash])
 }
 
 export function generateCollectionId(): string {
-  return generateRandomId([Math.random().toString()])
+  return generateId([Math.random().toString()])
 }
 
-function generateRandomId(props: string[]): string {
+function generateId(props: string[]): string {
   return id(props.join('\n')).slice(0, 10)
 }

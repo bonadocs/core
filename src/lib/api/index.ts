@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios'
 import { TransactionReceiptParams } from 'ethers'
 
 import { ExecutableEVMCall } from '../collection'
+import { config } from '../config'
 import { jsonUtils } from '../util'
 
 class BonadocsAPI {
@@ -18,37 +19,37 @@ class BonadocsAPI {
     })
   }
 
-  async loadContractSpec(
-    chainCode: string,
+  async loadContractABI(
+    chainId: number,
     address: string,
   ): Promise<string | undefined> {
     try {
       const response = await this.client.get(
-        `/contract?address=${address}&chain=${chainCode}`,
+        `/contract?address=${address}&chainId=${chainId}`,
       )
-      if (response.data?.data?.spec) {
-        return response.data.data.spec
+      if (response.data?.data?.abi) {
+        return response.data.data.abi
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      // ignore
     }
     return undefined
   }
 
   async simulateEVMBundle(
-    chainCode: string,
+    chainId: number,
     calls: ExecutableEVMCall[],
   ): Promise<TransactionReceiptParams[] | undefined> {
     try {
       const response = await this.client.post(
-        `/simulate?chain=${chainCode}`,
+        `/simulate?chainId=${chainId}`,
         calls,
       )
       if (Array.isArray(response.data?.data)) {
         return response.data.data
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      // ignore
     }
     return undefined
   }
@@ -61,7 +62,7 @@ export function getApi(url?: string): BonadocsAPI | undefined {
   }
 
   if (!url) {
-    return undefined
+    url = config.defaultAPIUrl
   }
 
   api = new BonadocsAPI(url)

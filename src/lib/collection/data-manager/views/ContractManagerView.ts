@@ -303,51 +303,6 @@ export class ContractManagerView {
         resetInternalDataStructures()
       },
     })
-    this.#dataManager.on('collection:rename-contract', {
-      process(event: RenameCollectionContractEvent): void | Promise<void> {
-        const contract = contractDefinitions.get(event.data.contractId)
-        if (contract) {
-          contract.name = event.data.name
-        }
-      },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
-      },
-    })
-    this.#dataManager.on('collection:add-contract-instance', {
-      process(event: AddCollectionContractInstanceEvent): void | Promise<void> {
-        const contract = contractDefinitions.get(event.data.contractId)
-        if (contract) {
-          contract.instances.push({
-            chainId: event.data.chainId,
-            address: event.data.address,
-          })
-        }
-      },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
-      },
-    })
-    this.#dataManager.on('collection:remove-contract-instance', {
-      process(
-        event: RemoveCollectionContractInstanceEvent,
-      ): void | Promise<void> {
-        const contract = contractDefinitions.get(event.data.contractId)
-        if (contract) {
-          const index = contract.instances.findIndex(
-            (instance) =>
-              instance.chainId === event.data.chainId &&
-              instance.address === event.data.address,
-          )
-          if (index !== -1) {
-            contract.instances.splice(index, 1)
-          }
-        }
-      },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
-      },
-    })
   }
 
   private setupCallbackEventListeners() {

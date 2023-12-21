@@ -7,12 +7,12 @@ import { ExecutableEVMCall } from '../collection'
  * a central API service to process simulations.
  */
 export class TransactionSimulator {
-  async simulateBundle(chainCode: string, calls: ExecutableEVMCall[]) {
+  async simulateBundle(chainId: number, calls: ExecutableEVMCall[]) {
     const api = getApi()
     if (!api) {
       throw new Error('Simulation API must be setup')
     }
 
-    return await api.simulateEVMBundle(chainCode, calls)
+    return await api.simulateEVMBundle(chainId, calls)
   }
 }

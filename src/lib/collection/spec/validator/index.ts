@@ -1,4 +1,4 @@
-import { id, Interface, isAddress } from 'ethers'
+import { Interface, isAddress, sha256, toUtf8Bytes } from 'ethers'
 
 import { supportedChains } from '../../../chains'
 import {
@@ -76,7 +76,10 @@ export function validateContractInterface(
     return result
   }
 
-  if (contractInterface.hash !== id(contractInterface.abi)) {
+  if (
+    contractInterface.hash !==
+    sha256(toUtf8Bytes(contractInterface.abi)).slice(2)
+  ) {
     result.errors.push('ABI hash mismatch')
   }
 

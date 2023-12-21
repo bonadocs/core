@@ -4,6 +4,7 @@ import {
   ContractDefinition,
   ContractInterface,
   Link,
+  validateContractInterface,
   VariableDefinition,
 } from '../../spec'
 
@@ -210,6 +211,13 @@ class AddCollectionContractInterfaceEventListener
       )
     ) {
       return
+    }
+
+    const validationResult = validateContractInterface(
+      event.data.contractInterface,
+    )
+    if (!validationResult.status) {
+      throw new Error(validationResult.errors.join('\n'))
     }
     this.collectionData.contractInterfaces.push(event.data.contractInterface)
   }

@@ -2,6 +2,7 @@ import { Interface, isAddress, sha256, toUtf8Bytes } from 'ethers'
 
 import { supportedChains } from '../../../chains'
 import {
+  CodeSnippet,
   CollectionData,
   ContractDefinition,
   ContractInterface,
@@ -159,21 +160,81 @@ export function validateWorkflow(
 
   if (!workflow.id) {
     result.errors.push('Workflow id is required')
+    return result
   }
 
   if (!workflow.name) {
     result.errors.push('Workflow name is required')
   }
 
-  if (!workflow.functions?.length) {
-    result.errors.push('Please add a step to the workflow')
+  for (const variable of workflow.variables || []) {
+    validateVariable(variable, result)
   }
 
-  for (const step of workflow.functions || []) {
+  if (!workflow.execution?.length) {
+    result.errors.push('Please add a step to the workflow')
+    return result
+  }
+
+  const executionType = typeof workflow.execution[0]
+  if (executionType === 'string') {
+    validateWorkflowFunctions(
+      workflow.id,
+      workflow.execution as string[],
+      contracts,
+      result,
+    )
+  } else if (executionType === 'object') {
+    validateWorkflowSnippets(
+      workflow.id,
+      workflow.execution as CodeSnippet[],
+      result,
+    )
+  } else {
+    result.errors.push(`Invalid workflow execution for ${workflow.id}`)
+  }
+  return result
+}
+
+function validateWorkflowSnippets(
+  workflowId: string,
+  snippets: CodeSnippet[],
+  result?: ValidationResult,
+): ValidationResult {
+  result = result || createValidationResult()
+  const languages = new Set<string>()
+  for (const snippet of snippets || []) {
+    if (!snippet.language) {
+      result.errors.push(`Invalid code snippet for workflow '${workflowId}'`)
+      continue
+    }
+    if (languages.has(snippet.language)) {
+      result.errors.push(
+        `Duplicate code snippet for language '${snippet.language}' in workflow '${workflowId}'`,
+      )
+      continue
+    }
+    languages.add(snippet.language)
+    if (!snippet.code?.length) {
+      result.errors.push(`Invalid code snippet for workflow '${workflowId}'`)
+    }
+  }
+
+  return result
+}
+
+function validateWorkflowFunctions(
+  workflowId: string,
+  steps: string[],
+  contracts: Map<string, Interface>,
+  result?: ValidationResult,
+): ValidationResult {
+  result = result || createValidationResult()
+  for (const step of steps || []) {
     const [contractId, functionSelector] = step.split('.')
     if (!contracts.has(contractId)) {
       result.errors.push(
-        `Invalid contract id '${contractId}' in workflow '${workflow.id}'`,
+        `Invalid contract id '${contractId}' in workflow '${workflowId}'`,
       )
       continue
     }
@@ -182,14 +243,11 @@ export function validateWorkflow(
     const functionFragment = contractInterface.getFunction(functionSelector)
     if (!functionFragment) {
       result.errors.push(
-        `Invalid function selector '${functionSelector}' for contract '${contractId}' in workflow '${workflow.id}'`,
+        `Invalid function selector '${functionSelector}' for contract '${contractId}' in workflow '${workflowId}'`,
       )
     }
   }
 
-  for (const variable of workflow.variables || []) {
-    validateVariable(variable, result)
-  }
   return result
 }
 

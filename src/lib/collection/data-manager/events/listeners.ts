@@ -869,8 +869,20 @@ class AddCollectionWorkflowFunctionEventListener
     const workflow = this.collectionData.workflows.find(
       (workflow) => workflow.id === event.data.workflowId,
     )
-    if (workflow) {
-      workflow.functions.push(event.data.functionKey)
+    if (!workflow) {
+      return
+    }
+
+    if (!workflow.execution) {
+      workflow.execution = []
+    }
+
+    if (
+      workflow.execution.length === 0 ||
+      typeof workflow.execution[0] === 'string'
+    ) {
+      const execution = workflow.execution as string[]
+      execution.push(event.data.functionKey)
     }
   }
 
@@ -882,11 +894,11 @@ class AddCollectionWorkflowFunctionEventListener
       return
     }
 
-    const index = workflow.functions.findIndex(
+    const index = workflow.execution.findIndex(
       (functionKey) => functionKey === event.data.functionKey,
     )
     if (index >= 0) {
-      workflow.functions.splice(index, 1)
+      workflow.execution.splice(index, 1)
     }
   }
 }
@@ -910,12 +922,12 @@ class RemoveCollectionWorkflowFunctionEventListener
       return
     }
 
-    const index = workflow.functions.findIndex(
+    const index = workflow.execution.findIndex(
       (functionKey) => functionKey === event.data.functionKey,
     )
     if (index >= 0) {
-      this.previousFunctionKey = workflow.functions[index]
-      workflow.functions.splice(index, 1)
+      this.previousFunctionKey = workflow.execution[index] as string
+      workflow.execution.splice(index, 1)
     }
   }
 
@@ -927,6 +939,7 @@ class RemoveCollectionWorkflowFunctionEventListener
       return
     }
 
-    workflow.functions.push(this.previousFunctionKey)
+    const execution = workflow.execution as string[]
+    execution.push(this.previousFunctionKey)
   }
 }

@@ -87,15 +87,26 @@ export interface ExecutionContext {
   simulationOverrides?: SimulationOverrides
 }
 
-export interface WorkflowDefinition {
+export interface CodeSnippet {
+  /**
+   * The code to execute.
+   */
+  code: string
+  language: 'js'
+}
+
+export type WorkflowDefinition = {
   id: string
   name: string
   variables: VariableDefinition[]
-
   /**
-   * Array of `contractId.functionSelector`
+   * Array of `contractId.functionSelector` or code snippets.
+   * For each supported language, there must be at most one code snippet.
+   * When an array of strings is passed, they will be executed in order.
+   * When an array of code snippets is passed, the snippet for the language
+   * specified will be executed.
    */
-  functions: string[]
+  execution: CodeSnippet[] | string[]
 }
 
 export interface WorkflowExecutionContext {

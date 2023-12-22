@@ -14,15 +14,25 @@ export class FileStorage implements StorageAPI {
   private readonly filePath: string
   private isSetup = false
 
-  constructor(
+  private constructor(
     private readonly directory: string,
     storeName: string,
-    private readonly createIfNotExists = true,
+    private readonly createIfNotExists: boolean,
   ) {
     this.filePath = path.join(directory, `${storeName}.json`)
   }
 
-  async setup() {
+  static async create(
+    directory: string,
+    storeName: string,
+    createIfNotExists = true,
+  ): Promise<FileStorage> {
+    const storage = new FileStorage(directory, storeName, createIfNotExists)
+    await storage.setup()
+    return storage
+  }
+
+  private async setup() {
     if (this.isSetup) return
 
     if (this.createIfNotExists) {

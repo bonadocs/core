@@ -61,9 +61,7 @@ async function createCollectionStore(
       'storage',
       'collections',
     )
-    const store = new FileStorage(directory, collectionId)
-    await store.setup()
-    return store
+    return await FileStorage.create(directory, collectionId)
   }
 
   throw new Error('No storage implementation available for this environment')
@@ -89,9 +87,7 @@ async function createLocalCollectionNameStore(): Promise<StorageAPI> {
   if (typeof process === 'object' && process?.versions?.node) {
     const { FileStorage } = await import('./FileStorage')
     const directory = path.join(os.homedir(), '.bonadocs', 'storage')
-    const store = new FileStorage(directory, 'collections')
-    await store.setup()
-    return store
+    return FileStorage.create(directory, 'collections')
   }
 
   throw new Error('No storage implementation available for this environment')

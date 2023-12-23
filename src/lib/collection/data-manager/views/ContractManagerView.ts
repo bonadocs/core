@@ -135,6 +135,7 @@ export class ContractManagerView {
 
     await this.#dataManager.emit(addContractEvent)
     await this.#dataManager.emit(addContractInstanceEvent)
+    return contract.id
   }
 
   async removeContract(contractId: string) {

@@ -1,3 +1,4 @@
+import { getRequest } from '../api'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout, saveToIPFS } from '../ipfs'
 import { getCollectionStore } from '../storage'
@@ -71,6 +72,26 @@ export class Collection {
     return this.createFromSnapshot(data)
   }
 
+  static async createFromURI(uri: string) {
+    if (uri.startsWith('ipfs://')) {
+      return this.createFromIPFS(uri)
+    }
+
+    if (uri.startsWith('https://')) {
+      const responseData = await getRequest(uri)
+      if (!responseData) {
+        throw Error(`Failed to load collection data at ${uri}.`)
+      }
+
+      if (typeof responseData !== 'string') {
+        return this.createFromSnapshot(JSON.stringify(responseData))
+      }
+      return this.createFromSnapshot(responseData)
+    }
+
+    throw Error('Invalid URI')
+  }
+
   /**
    * Loads a collection from a JSON snapshot.
    * @param snapshot
@@ -99,7 +120,7 @@ export class Collection {
   /**
    * Returns the collection data manager
    */
-  manager(): CollectionDataManager {
+  get manager(): CollectionDataManager {
     if (!this.#manager) {
       this.#manager = new CollectionDataManager(this.#data)
     }

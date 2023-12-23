@@ -85,9 +85,7 @@ export class FileStorage implements StorageAPI {
     } catch (error) {
       throw new FileStorageError(
         `Failed to get data: ${
-          !!error && typeof error === 'object' && 'message' in error
-            ? error.message
-            : 'An unknown error occurred'
+          error instanceof Error ? error.message : 'An unknown error occurred'
         }`,
       )
     }

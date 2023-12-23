@@ -3,9 +3,15 @@ import path from 'path'
 
 import { IndexedDBStorage } from './IndexedDBStorage'
 import { StorageAPI } from './StorageAPI'
+import {
+  deleteCollectionName,
+  getLocalCollectionNames,
+  indexCollectionName,
+} from './name-indexer'
 
 const collectionStores: Record<string, StorageAPI> = {}
-let localCollectionNameStore: StorageAPI | null = null
+
+export { getLocalCollectionNames, deleteCollectionName }
 
 export async function getCollectionStore(
   collectionId: string,
@@ -16,34 +22,9 @@ export async function getCollectionStore(
   }
 
   if (collectionName) {
-    storeCollectionIdAndName(collectionId, collectionName)
+    indexCollectionName(collectionId, collectionName)
   }
   return collectionStores[collectionId]
-}
-
-export async function getLocalCollectionNames(): Promise<
-  Record<string, { name: string; lastAccessTimestamp: number }>
-> {
-  const store = await getLocalCollectionNameStore()
-  const names = await store.get('collectionNames')
-  if (!names) {
-    return {}
-  }
-
-  return JSON.parse(names)
-}
-
-export function deleteLocalCollectionName(collectionId: string) {
-  getLocalCollectionNames()
-    .then(async (names) => {
-      delete names[collectionId]
-
-      const store = await getLocalCollectionNameStore()
-      return await store.set('collectionNames', JSON.stringify(names))
-    })
-    .catch((error) => {
-      console.error(error)
-    })
 }
 
 async function createCollectionStore(
@@ -65,49 +46,4 @@ async function createCollectionStore(
   }
 
   throw new Error('No storage implementation available for this environment')
-}
-
-/**
- * This store is used to store the names of collections that can be managed
- * on this device. This is not a strong guarantee that the collection exists,
- * but it can help with listing collections that can be managed.
- */
-async function getLocalCollectionNameStore(): Promise<StorageAPI> {
-  if (!localCollectionNameStore) {
-    localCollectionNameStore = await createLocalCollectionNameStore()
-  }
-  return localCollectionNameStore
-}
-
-async function createLocalCollectionNameStore(): Promise<StorageAPI> {
-  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
-    return new IndexedDBStorage('bonadocs', 'collections')
-  }
-
-  if (typeof process === 'object' && process?.versions?.node) {
-    const { FileStorage } = await import('./FileStorage')
-    const directory = path.join(os.homedir(), '.bonadocs', 'storage')
-    return FileStorage.create(directory, 'collections')
-  }
-
-  throw new Error('No storage implementation available for this environment')
-}
-
-function storeCollectionIdAndName(
-  collectionId: string,
-  collectionName: string,
-) {
-  getLocalCollectionNames()
-    .then(async (names) => {
-      names[collectionId] = {
-        name: collectionName,
-        lastAccessTimestamp: Date.now(),
-      }
-
-      const store = await getLocalCollectionNameStore()
-      return await store.set('collectionNames', JSON.stringify(names))
-    })
-    .catch((error) => {
-      console.error(error)
-    })
 }

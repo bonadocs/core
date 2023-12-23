@@ -1,4 +1,4 @@
-import { getRequest } from '../api'
+import { httpGet } from '../api'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout, saveToIPFS } from '../ipfs'
 import { getCollectionStore } from '../storage'
@@ -78,7 +78,7 @@ export class Collection {
     }
 
     if (uri.startsWith('https://')) {
-      const responseData = await getRequest(uri)
+      const responseData = await httpGet(uri)
       if (!responseData) {
         throw Error(`Failed to load collection data at ${uri}.`)
       }

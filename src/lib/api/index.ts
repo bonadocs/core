@@ -16,6 +16,7 @@ class BonadocsAPI {
       },
       transformRequest: (data) => JSON.stringify(data, jsonUtils.replacer),
       transformResponse: (data) => JSON.parse(data, jsonUtils.reviver),
+      validateStatus: () => true,
     })
   }
 
@@ -56,7 +57,7 @@ class BonadocsAPI {
 }
 
 let api: BonadocsAPI | undefined
-export function getApi(url?: string): BonadocsAPI | undefined {
+export function getApi(url?: string): BonadocsAPI {
   if (api) {
     return api
   }
@@ -67,4 +68,11 @@ export function getApi(url?: string): BonadocsAPI | undefined {
 
   api = new BonadocsAPI(url)
   return api
+}
+
+export async function httpGet(url: string): Promise<unknown> {
+  const response = await axios.get(url, {
+    validateStatus: () => true,
+  })
+  return await response.data
 }

@@ -1,28 +1,12 @@
-﻿import os from 'os'
-import path from 'path'
+﻿import { StorageAPI } from './StorageAPI'
+import { UnifiedStorage } from './UnifiedStorage'
 
-import { IndexedDBStorage } from './IndexedDBStorage'
-import { StorageAPI } from './StorageAPI'
-
-type Job =
-  | {
-      type: 'setName'
-      collectionId: string
-      collectionName: string
-    }
-  | {
-      type: 'deleteName'
-      collectionId: string
-    }
-
-const jobs: Job[] = []
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 let localCollectionNameStore: StorageAPI | null = null
 
-export async function getLocalCollectionNames(): Promise<
-  Record<string, { name: string; lastAccessTimestamp: number }>
-> {
-  const store = await getLocalCollectionNameStore()
+export async function getLocalCollectionNames(
+  store?: StorageAPI,
+): Promise<Record<string, { name: string; lastAccessTimestamp: number }>> {
+  store = store ?? (await getLocalCollectionNameStore())
   const names = await store.get('collectionNames')
   if (!names) {
     return {}
@@ -31,41 +15,26 @@ export async function getLocalCollectionNames(): Promise<
   return JSON.parse(names)
 }
 
-export function indexCollectionName(collectionId: string, name: string) {
-  jobs.push({
-    type: 'setName',
-    collectionId,
-    collectionName: name,
-  })
-}
-
-export function deleteCollectionName(collectionId: string) {
-  jobs.push({
-    type: 'deleteName',
-    collectionId,
-  })
-}
-
-async function processJobs() {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (jobs.length) {
-      const job = jobs.shift()!
-      switch (job.type) {
-        case 'setName':
-          await storeLocalCollectionIdAndName(
-            job.collectionId,
-            job.collectionName,
-          )
-          break
-        case 'deleteName':
-          await deleteLocalCollectionName(job.collectionId)
-          break
-      }
-    } else {
-      await sleep(100)
+export async function indexCollectionName(collectionId: string, name: string) {
+  const store = await getLocalCollectionNameStore()
+  await store.transaction(async (store) => {
+    const names = await getLocalCollectionNames(store)
+    names[collectionId] = {
+      name: name,
+      lastAccessTimestamp: Date.now(),
     }
-  }
+
+    return await store.set('collectionNames', JSON.stringify(names))
+  })
+}
+
+export async function deleteCollectionName(collectionId: string) {
+  const store = await getLocalCollectionNameStore()
+  await store.transaction(async (store) => {
+    const names = await getLocalCollectionNames(store)
+    delete names[collectionId]
+    return await store.set('collectionNames', JSON.stringify(names))
+  })
 }
 
 /**
@@ -75,47 +44,10 @@ async function processJobs() {
  */
 async function getLocalCollectionNameStore(): Promise<StorageAPI> {
   if (!localCollectionNameStore) {
-    localCollectionNameStore = await createLocalCollectionNameStore()
+    localCollectionNameStore = await UnifiedStorage.create(
+      'meta',
+      'collections',
+    )
   }
   return localCollectionNameStore
 }
-
-async function createLocalCollectionNameStore(): Promise<StorageAPI> {
-  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
-    return new IndexedDBStorage('bonadocs', 'collections')
-  }
-
-  if (typeof process === 'object' && process?.versions?.node) {
-    const { FileStorage } = await import('./FileStorage')
-    const directory = path.join(os.homedir(), '.bonadocs', 'storage')
-    return FileStorage.create(directory, 'collections')
-  }
-
-  throw new Error('No storage implementation available for this environment')
-}
-
-async function storeLocalCollectionIdAndName(
-  collectionId: string,
-  collectionName: string,
-) {
-  const names = await getLocalCollectionNames()
-  names[collectionId] = {
-    name: collectionName,
-    lastAccessTimestamp: Date.now(),
-  }
-
-  const store = await getLocalCollectionNameStore()
-  return await store.set('collectionNames', JSON.stringify(names))
-}
-
-async function deleteLocalCollectionName(collectionId: string) {
-  const names = await getLocalCollectionNames()
-  delete names[collectionId]
-
-  const store = await getLocalCollectionNameStore()
-  return await store.set('collectionNames', JSON.stringify(names))
-}
-
-processJobs().catch((e) => {
-  throw e
-})

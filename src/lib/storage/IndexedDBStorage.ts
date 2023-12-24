@@ -6,6 +6,7 @@
 export class IndexedDBStorage implements StorageAPI {
   readonly #dbPromise: Promise<void>
   #db: IDBDatabase | null = null
+
   constructor(
     private readonly dbName: string,
     private readonly storeName: string,
@@ -18,6 +19,10 @@ export class IndexedDBStorage implements StorageAPI {
       .catch((err) => {
         throw new Error(`Failed to open database: ${err}`)
       })
+  }
+
+  transaction(): Promise<void> {
+    throw new Error('Method not implemented.')
   }
 
   private openDatabase(): Promise<IDBDatabase> {

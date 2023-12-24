@@ -22,6 +22,10 @@ export class FileStorage implements StorageAPI {
     this.filePath = path.join(directory, `${storeName}.json`)
   }
 
+  transaction(): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+
   static async create(
     directory: string,
     storeName: string,

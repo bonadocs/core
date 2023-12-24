@@ -1,8 +1,5 @@
-﻿import os from 'os'
-import path from 'path'
-
-import { IndexedDBStorage } from './IndexedDBStorage'
-import { StorageAPI } from './StorageAPI'
+﻿import { StorageAPI } from './StorageAPI'
+import { UnifiedStorage } from './UnifiedStorage'
 import {
   deleteCollectionName,
   getLocalCollectionNames,
@@ -14,12 +11,23 @@ let searchDBStore: StorageAPI | undefined = undefined
 
 export { getLocalCollectionNames, deleteCollectionName }
 
+UnifiedStorage.start().catch((e) => {
+  throw e
+})
+
+export const stopUnifiedStorage = () => {
+  UnifiedStorage.stop()
+}
+
 export async function getCollectionStore(
   collectionId: string,
   collectionName?: string,
 ): Promise<StorageAPI> {
   if (!collectionStores[collectionId]) {
-    collectionStores[collectionId] = await createCollectionStore(collectionId)
+    collectionStores[collectionId] = await UnifiedStorage.create(
+      'collections',
+      collectionId,
+    )
   }
 
   if (collectionName) {
@@ -30,43 +38,8 @@ export async function getCollectionStore(
 
 export async function getSearchDBStore(): Promise<StorageAPI> {
   if (!searchDBStore) {
-    searchDBStore = await createSearchDBStore()
+    searchDBStore = await UnifiedStorage.create('registry', 'index')
   }
 
   return searchDBStore
-}
-
-async function createCollectionStore(
-  collectionId: string,
-): Promise<StorageAPI> {
-  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
-    return new IndexedDBStorage('bonadocs', `collections-${collectionId}`)
-  }
-
-  if (typeof process === 'object' && process?.versions?.node) {
-    const { FileStorage } = await import('./FileStorage')
-    const directory = path.join(
-      os.homedir(),
-      '.bonadocs',
-      'storage',
-      'collections',
-    )
-    return await FileStorage.create(directory, collectionId)
-  }
-
-  throw new Error('No storage implementation available for this environment')
-}
-
-async function createSearchDBStore(): Promise<StorageAPI> {
-  if (typeof window !== 'undefined' && typeof window?.indexedDB === 'object') {
-    return new IndexedDBStorage('bonadocs', `search-db`)
-  }
-
-  if (typeof process === 'object' && process?.versions?.node) {
-    const { FileStorage } = await import('./FileStorage')
-    const directory = path.join(os.homedir(), '.bonadocs', 'storage', 'search')
-    return await FileStorage.create(directory, 'search-db')
-  }
-
-  throw new Error('No storage implementation available for this environment')
 }

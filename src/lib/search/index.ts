@@ -126,13 +126,13 @@ export async function deepSearch(
  * This process should be run asynchronously and users can
  * still use the search feature while this process is running.
  */
-export function preIndexDataForSearchDB() {
+export async function preIndexDataForSearchDB() {
   const promises = []
 
   // download the names file. It is the most important file
-  // for search as it is used in every searched. It must be
+  // for search as it is used in every search. It must be
   // cached first to avoid any delays in the search.
-  promises.push(downloadFileFromSearchDB(namesFile))
+  await downloadFileFromSearchDB(namesFile)
 
   // download the tags file. It stores the list of all tags
   // files. We need to download all of them to cache them.

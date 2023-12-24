@@ -85,7 +85,7 @@ export class UnifiedStorage implements StorageAPI {
     while (this.#isRunning || this.#tasks.length > 0) {
       const task = this.#tasks.shift()
       if (!task) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
+        await new Promise((resolve) => setTimeout(resolve, 5))
         continue
       }
 

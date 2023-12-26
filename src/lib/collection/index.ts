@@ -1,6 +1,6 @@
 import { httpGet } from '../api'
 import { BonadocsError } from '../errors'
-import { loadFromIPFSWithTimeout, saveToIPFS } from '../ipfs'
+import { loadFromIPFSWithTimeout } from '../ipfs'
 import { getCollectionStore } from '../storage'
 import { jsonUtils } from '../util'
 
@@ -16,7 +16,6 @@ export * from './spec'
 
 export class Collection {
   #data: CollectionData
-  #lastSaveUri: string | undefined
   #manager: CollectionDataManager | undefined
 
   /**
@@ -125,25 +124,5 @@ export class Collection {
       this.#manager = new CollectionDataManager(this.#data)
     }
     return this.#manager
-  }
-
-  /**
-   * Saves the collection to IPFS and returns the IPFS URI
-   */
-  async save(): Promise<string> {
-    const result = validateCollection(this.#data)
-    if (!result.status) {
-      throw new BonadocsError(result)
-    }
-
-    this.#lastSaveUri = await saveToIPFS(JSON.stringify(this.#data))
-    return this.#lastSaveUri
-  }
-
-  /**
-   * Generates a JSON snapshot of the collection data.
-   */
-  getSnapshot(): string {
-    return JSON.stringify(this.#data, jsonUtils.replacer)
   }
 }

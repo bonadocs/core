@@ -275,7 +275,10 @@ async function searchNames(q: string): Promise<QuickSearchItem[]> {
   }
   return names
     .split('\n')
-    .filter((name) => name.trim() && name.includes(q))
+    .filter(
+      (name) =>
+        name.trim() && name.trim().toLowerCase().includes(q.toLowerCase()),
+    )
     .map((name) => {
       const slugAndName = name.trim().split(':')
       return {

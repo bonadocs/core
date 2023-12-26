@@ -1,9 +1,11 @@
 ﻿import { FunctionFragment } from 'ethers'
 
+import { BonadocsError } from '../../errors'
+import { saveToIPFS } from '../../ipfs'
 import { getCollectionStore } from '../../storage'
 import { jsonUtils } from '../../util'
 import { Event, EventEmitter, EventListener, EventType } from '../events'
-import { CollectionData } from '../spec'
+import { CollectionData, validateCollection } from '../spec'
 
 import { registerDataUpdateListeners } from './events'
 import {
@@ -36,7 +38,7 @@ export class CollectionDataManager {
     await this.#eventEmitter.emit(event)
   }
 
-  async save() {
+  async saveToLocal() {
     const collectionStore = await getCollectionStore(
       this.data.id,
       this.data.name,
@@ -45,6 +47,25 @@ export class CollectionDataManager {
       'data',
       JSON.stringify(this.data, jsonUtils.replacer),
     )
+  }
+
+  /**
+   * Saves the collection to IPFS and returns the IPFS URI
+   */
+  publishToIPFS(): Promise<string> {
+    const result = validateCollection(this.#data)
+    if (!result.status) {
+      throw new BonadocsError(result)
+    }
+
+    return saveToIPFS(JSON.stringify(this.#data))
+  }
+
+  /**
+   * Generates a JSON snapshot of the collection data.
+   */
+  getSnapshot(): string {
+    return JSON.stringify(this.#data, jsonUtils.replacer)
   }
 
   on<TEvent extends EventType, TEventData>(
@@ -153,13 +174,13 @@ export class CollectionDataManager {
    * @private
    */
   private setupUpdatePersistence() {
-    const save = this.save.bind(this)
+    const saveToLocal = this.saveToLocal.bind(this)
     this.#eventEmitter.on('*', {
       process() {
-        return save()
+        return saveToLocal()
       },
       async undo() {
-        return save()
+        return saveToLocal()
       },
     })
   }

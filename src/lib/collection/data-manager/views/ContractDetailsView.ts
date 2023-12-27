@@ -28,6 +28,12 @@ export class ContractDetailsView {
     return this.#fragments.values()
   }
 
+  get functions() {
+    return [...this.#fragments.values()].filter(
+      (fragment) => fragment.fragment instanceof FunctionFragment,
+    )
+  }
+
   private populateInternalDataStructures() {
     const contract = this.#dataManager.data.contracts.find(
       (contract) => contract.id === this.#contractId,

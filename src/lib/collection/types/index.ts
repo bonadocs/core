@@ -34,3 +34,8 @@ export interface ContractElementFragment {
 export interface Environment {
   variables: VariableDefinition[]
 }
+
+export interface WidgetConfiguration {
+  collectionURI: string
+  functions: string[]
+}

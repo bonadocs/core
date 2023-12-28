@@ -10,6 +10,7 @@ const ipfsGateways = [
   'https://cf-ipfs.com',
   'https://cloudflare-ipfs.com',
   'https://hardbin.com',
+  'https://ipfs.nftstorage.link',
 ]
 
 let clients: AxiosInstance[]

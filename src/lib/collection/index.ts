@@ -6,7 +6,7 @@ import { jsonUtils } from '../util'
 
 import { CollectionDataManager } from './data-manager'
 import { CollectionData, validateCollection } from './spec'
-import { generateCollectionId } from './util'
+import { generateRandomId } from './util'
 
 export * from './data-manager'
 export * from './execution'
@@ -30,7 +30,7 @@ export class Collection {
     }
 
     this.#data = {
-      id: generateCollectionId(),
+      id: generateRandomId(),
       name,
       description,
       strings: {},

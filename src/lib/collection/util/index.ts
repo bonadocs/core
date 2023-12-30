@@ -11,7 +11,7 @@ export function generateContractId(
   return generateId([collectionId, interfaceHash])
 }
 
-export function generateCollectionId(): string {
+export function generateRandomId(): string {
   return generateId([Math.random().toString()])
 }
 

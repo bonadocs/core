@@ -8,14 +8,16 @@
 } from 'ethers'
 
 import { ContractParam, FragmentDisplayData } from '../../types'
+import { generateRandomId } from '../../util'
 
 import { ValueManagerView } from './ValueManagerView'
 
 export class FunctionFragmentView {
   readonly #valueManagerView: ValueManagerView
-  readonly #fragmentKey: string
   readonly #fragment: FunctionFragment
   readonly #displayData: FragmentDisplayData
+  readonly #id: string
+  readonly #fragmentKey: string
 
   // this works because the instance is the same
   private readonly paths: Map<ParamType, string>
@@ -26,10 +28,11 @@ export class FunctionFragmentView {
     fragment: FunctionFragment,
   ) {
     this.#valueManagerView = valueManagerView
-    this.#fragmentKey = fragmentKey
     this.#fragment = fragment
     this.paths = new Map()
     this.#displayData = []
+    this.#id = `functionFragmentView-${generateRandomId()}`
+    this.#fragmentKey = fragmentKey
   }
 
   /**
@@ -50,6 +53,10 @@ export class FunctionFragmentView {
     )
     await view.generateInputDisplayData()
     return view
+  }
+
+  get id() {
+    return this.#id
   }
 
   /**
@@ -459,6 +466,10 @@ export class FunctionFragmentView {
       1 + elementsPerItem * prevGeneratedCount,
       ...elementDisplaySegments,
     )
+  }
+
+  #idWithPath(path?: string) {
+    return path ? `${this.#id}::${path}` : this.#id
   }
 
   #fragmentKeyWithPath(path?: string) {

@@ -113,7 +113,7 @@ export class FunctionFragmentView {
   }
 
   decodeResult(data: BytesLike): Result {
-    return AbiCoder.defaultAbiCoder().decode(this.#fragment.inputs, data)
+    return AbiCoder.defaultAbiCoder().decode(this.#fragment.outputs, data)
   }
 
   /**

@@ -20,7 +20,7 @@ export class FunctionFragmentView {
   readonly #fragmentKey: string
 
   // this works because the instance is the same
-  private readonly paths: Map<ParamType, string>
+  readonly #paths: Map<ParamType, string>
 
   private constructor(
     valueManagerView: ValueManagerView,
@@ -29,7 +29,7 @@ export class FunctionFragmentView {
   ) {
     this.#valueManagerView = valueManagerView
     this.#fragment = fragment
-    this.paths = new Map()
+    this.#paths = new Map()
     this.#displayData = []
     this.#id = `functionFragmentView-${generateRandomId()}`
     this.#fragmentKey = fragmentKey
@@ -217,7 +217,7 @@ export class FunctionFragmentView {
       return params
     }
 
-    const path = this.paths.get(inputType)!
+    const path = this.#paths.get(inputType)!
     if (inputType.arrayChildren) {
       const generatedCount = Number(this.getDataValue(path))
       const params: ContractParam = []
@@ -321,7 +321,7 @@ export class FunctionFragmentView {
       return
     }
 
-    this.paths.set(paramType, paramPath)
+    this.#paths.set(paramType, paramPath)
     values.push({
       indent,
       index: values.length,
@@ -342,7 +342,7 @@ export class FunctionFragmentView {
     await this.deleteDataValue(path)
 
     // delete values for all the sub-paths of the path
-    const keys = this.paths.values()
+    const keys = this.#paths.values()
     for (const key of keys) {
       if (key.startsWith(path + '.')) {
         await this.deleteDataValue(path)
@@ -371,7 +371,7 @@ export class FunctionFragmentView {
     }
 
     // replace values for all the sub-paths of the path
-    const keys = this.paths.values()
+    const keys = this.#paths.values()
     for (const key of keys) {
       if (key.startsWith(path) + '.') {
         const newKey = key.replace(path, newPath)

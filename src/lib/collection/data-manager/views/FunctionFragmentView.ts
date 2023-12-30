@@ -37,6 +37,7 @@ export class FunctionFragmentView {
 
   /**
    * Creates a new FunctionFragmentView for the given function fragment.
+   *
    * @param valueManagerView
    * @param fragmentKey
    * @param fragment
@@ -81,7 +82,7 @@ export class FunctionFragmentView {
   }
 
   getDataValue(path?: string) {
-    const fullKey = `values::${this.#fragmentKeyWithPath(path)}`
+    const fullKey = `values::${this.#idWithPath(path)}`
     return this.#valueManagerView.getString(fullKey)
   }
 
@@ -91,7 +92,7 @@ export class FunctionFragmentView {
   }
 
   async setDataValue(value: string, path?: string) {
-    const fullKey = `values::${this.#fragmentKeyWithPath(path)}`
+    const fullKey = `values::${this.#idWithPath(path)}`
     await this.#valueManagerView.setString(fullKey, value)
   }
 
@@ -101,7 +102,7 @@ export class FunctionFragmentView {
   }
 
   async deleteDataValue(path?: string) {
-    const fullKey = `values::${this.#fragmentKeyWithPath(path)}`
+    const fullKey = `values::${this.#idWithPath(path)}`
     await this.#valueManagerView.deleteString(fullKey)
   }
 

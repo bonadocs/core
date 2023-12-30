@@ -43,6 +43,30 @@ export class ContractDetailsView {
     return this.#fragments.get(key)
   }
 
+  getFunctionFragment(key: string) {
+    const fragment = this.getFragment(key)
+    if (fragment?.fragment instanceof FunctionFragment) {
+      return fragment
+    }
+
+    // not a function fragment
+    if (fragment) {
+      return undefined
+    }
+
+    // key might be a selector or signature
+    const fn = this.#contractInterface.getFunction(key)
+    if (!fn) {
+      return undefined
+    }
+
+    return this.getFragment(`${this.#contractId}.function.${fn.selector}`)
+  }
+
+  get contractInterface() {
+    return this.#contractInterface
+  }
+
   get fragments() {
     return this.#fragments.values()
   }

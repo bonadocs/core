@@ -1,6 +1,7 @@
 ﻿import {
   AbiCoder,
   BytesLike,
+  concat,
   FunctionFragment,
   ParamType,
   Result,
@@ -102,10 +103,13 @@ export class FunctionFragmentView {
    * This can be used to call the function on the contract.
    */
   encodeFunctionData(): string {
-    return AbiCoder.defaultAbiCoder().encode(
-      this.#fragment.inputs,
-      this.computeContractArguments() as unknown[],
-    )
+    return concat([
+      this.fragment.selector,
+      AbiCoder.defaultAbiCoder().encode(
+        this.#fragment.inputs,
+        this.computeContractArguments() as unknown[],
+      ),
+    ])
   }
 
   decodeResult(data: BytesLike): Result {

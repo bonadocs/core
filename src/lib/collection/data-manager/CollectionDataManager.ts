@@ -151,7 +151,7 @@ export class CollectionDataManager {
     if (fragment?.fragment instanceof FunctionFragment) {
       return FunctionFragmentView.create(
         this.valueManagerView,
-        contractId,
+        fragmentKey,
         fragment.fragment,
       )
     }

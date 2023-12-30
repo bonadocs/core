@@ -76,6 +76,13 @@ export class FunctionFragmentView {
     return this.#fragment
   }
 
+  async clear() {
+    for (const [, path] of this.#paths) {
+      await this.deleteDataValue(path)
+    }
+    this.#paths.clear()
+  }
+
   getDocText(path?: string) {
     const fullKey = `docs::${this.#fragmentKeyWithPath(path)}`
     return this.#valueManagerView.getString(fullKey)

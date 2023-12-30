@@ -12,11 +12,30 @@ export class ContractDetailsView {
   readonly #dataManager: CollectionDataManager
   readonly #fragments: Map<string, ContractElementFragment>
   readonly #contractId: string
+  readonly #contractInterface: Interface
 
   constructor(dataManager: CollectionDataManager, contractId: string) {
     this.#dataManager = dataManager
     this.#contractId = contractId
     this.#fragments = new Map<string, ContractElementFragment>()
+    const contract = this.#dataManager.data.contracts.find(
+      (contract) => contract.id === this.#contractId,
+    )
+
+    if (!contract) {
+      throw new Error(`Contract with id ${this.#contractId} not found`)
+    }
+
+    const contractInterface = this.#dataManager.data.contractInterfaces.find(
+      (contractInterface) => contractInterface.hash === contract.interfaceHash,
+    )
+
+    if (!contractInterface) {
+      throw new Error(
+        `Contract interface with hash ${contract.interfaceHash} not found`,
+      )
+    }
+    this.#contractInterface = new Interface(contractInterface.abi)
     this.populateInternalDataStructures()
   }
 
@@ -35,27 +54,8 @@ export class ContractDetailsView {
   }
 
   private populateInternalDataStructures() {
-    const contract = this.#dataManager.data.contracts.find(
-      (contract) => contract.id === this.#contractId,
-    )
-
-    if (!contract) {
-      throw new Error(`Contract with id ${this.#contractId} not found`)
-    }
-
-    const contractInterface = this.#dataManager.data.contractInterfaces.find(
-      (contractInterface) => contractInterface.hash === contract.interfaceHash,
-    )
-
-    if (!contractInterface) {
-      throw new Error(
-        `Contract interface with hash ${contract.interfaceHash} not found`,
-      )
-    }
-
     this.#fragments.clear()
-    const interfaceInstance = new Interface(contractInterface.abi)
-    for (const fragment of interfaceInstance.fragments) {
+    for (const fragment of this.#contractInterface.fragments) {
       let selector: string
       if (
         fragment instanceof ErrorFragment ||
@@ -70,7 +70,7 @@ export class ContractDetailsView {
 
       const fragmentKey = `${this.#contractId}.${fragment.type}.${selector}`
       this.#fragments.set(fragmentKey, {
-        contractId: contract.id,
+        contractId: this.#contractId,
         fragmentKey,
         signature: fragment.format('full'),
         fragment,

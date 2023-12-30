@@ -142,6 +142,16 @@ export class CollectionDataManager {
     return view
   }
 
+  async dropFunctionFragmentView(contractId: string, fragmentKey: string) {
+    const contractViews = this.#functionFragmentViews.get(contractId)
+    if (!contractViews) {
+      return
+    }
+
+    await contractViews.get(fragmentKey)?.clear()
+    contractViews.delete(fragmentKey)
+  }
+
   private async createFunctionFragmentView(
     contractId: string,
     fragmentKey: string,

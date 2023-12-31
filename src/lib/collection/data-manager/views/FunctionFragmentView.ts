@@ -332,7 +332,7 @@ export class FunctionFragmentView {
     values.push({
       indent,
       index: values.length,
-      name: paramType.name,
+      name: paramType.name || `value${paramPath.split('.').slice(-1)[0]}`,
       baseType: paramType.baseType,
       path: paramPath,
       ...extraParams,

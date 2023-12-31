@@ -1,3 +1,5 @@
+import { Interface } from 'ethers'
+
 const jsonSubstitutionCode = 'bonadocs-json-substitution'
 function jsonReplacer(_: string, v: unknown) {
   switch (typeof v) {
@@ -49,4 +51,28 @@ export const jsonUtils = {
   replacer: jsonReplacer,
   displayReplacer: jsonDisplayReplacer,
   reviver: jsonReviver,
+}
+
+export function createEthersInterface(abi: string) {
+  return new Interface(normalizeABI(abi))
+}
+
+/**
+ * Normalizes an ABI by removing duplicate entries.
+ * @param abi
+ */
+export function normalizeABI(abi: string): string {
+  return JSON.stringify(
+    [
+      ...new Set(
+        JSON.parse(abi)
+          .filter(
+            (fragment: { type: string }) => fragment.type !== 'constructor',
+          )
+          .map(JSON.stringify),
+      ),
+    ]
+      .sort()
+      .map((s) => JSON.parse(s as string)),
+  )
 }

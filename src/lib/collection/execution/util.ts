@@ -1,4 +1,4 @@
-﻿import { JsonRpcProvider, ParamType, Provider, Result } from 'ethers'
+﻿import { JsonRpcProvider, ParamType, Provider, Result, toBeHex } from 'ethers'
 
 import { supportedChains } from '../../chains'
 
@@ -48,8 +48,8 @@ export function convertResultToDisplayResult(
   const displayResult: DisplayResult = []
   for (let i = 0; i < result.length; i++) {
     displayResult.push({
-      name: paramTypes[i].name || null,
-      value: result[i],
+      name: paramTypes[i].name || `value${i}`,
+      value: typeof result[i] === 'bigint' ? toBeHex(result[i]) : result[i],
     })
   }
   return displayResult

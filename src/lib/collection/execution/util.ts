@@ -2,10 +2,7 @@
 
 import { supportedChains } from '../../chains'
 
-export type DisplayResult = Array<{
-  name: string | null
-  value: unknown
-}>
+export type DisplayResult = Record<string, unknown>
 
 export async function getProvider(
   connectedProvider: Provider | null | undefined,
@@ -45,12 +42,10 @@ export function convertResultToDisplayResult(
     throw new Error('Invalid result for ABI interface')
   }
 
-  const displayResult: DisplayResult = []
+  const displayResult: DisplayResult = {}
   for (let i = 0; i < result.length; i++) {
-    displayResult.push({
-      name: paramTypes[i].name || `value${i}`,
-      value: typeof result[i] === 'bigint' ? toBeHex(result[i]) : result[i],
-    })
+    displayResult[paramTypes[i].name || `value${i}`] =
+      typeof result[i] === 'bigint' ? toBeHex(result[i]) : result[i]
   }
   return displayResult
 }

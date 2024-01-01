@@ -1,6 +1,5 @@
-﻿import { ExecutableEVMCall } from '../spec'
-
-import { getApi } from './api'
+﻿import { getApi } from '../../api'
+import { ExecutableEVMCall } from '../spec'
 
 /**
  * This class is maintained separately rather than just relying on the API object because

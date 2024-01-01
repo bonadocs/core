@@ -2,8 +2,11 @@
   Interface,
   LogDescription,
   LogParams,
+  toBeHex,
   TransactionReceiptParams,
 } from 'ethers'
+
+import { jsonUtils } from '../../util'
 
 import { convertResultToDisplayResult, DisplayResult } from './util'
 
@@ -67,10 +70,32 @@ export class TransactionReceiptWithParsedLogs {
     return this.#parsedLogs
   }
 
-  toJSON() {
+  get simpleData() {
     return {
-      receipt: this.receipt,
-      parsedLogs: this.parsedLogs,
+      hash: this.receipt.hash,
+      from: this.receipt.from,
+      to: this.receipt.to,
+      gasUsed: toBeHex(this.receipt.gasUsed),
+      logs: this.parsedLogs.map((l) =>
+        l.description && l.displayDescription
+          ? {
+              name: l.description.name,
+              data: l.displayDescription,
+            }
+          : l,
+      ),
     }
+  }
+
+  toJSON() {
+    return JSON.parse(
+      JSON.stringify(
+        {
+          receipt: this.receipt,
+          parsedLogs: this.parsedLogs,
+        },
+        jsonUtils.displayReplacer,
+      ),
+    )
   }
 }

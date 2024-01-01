@@ -1,6 +1,7 @@
 import { Interface, isAddress, sha256, toUtf8Bytes } from 'ethers'
 
 import { supportedChains } from '../../../chains'
+import { createEthersInterface } from '../../../util'
 import {
   CodeSnippet,
   CollectionData,
@@ -85,7 +86,7 @@ export function validateContractInterface(
   }
 
   try {
-    Interface.from(contractInterface.abi)
+    createEthersInterface(contractInterface.abi)
   } catch {
     result.errors.push('Invalid ABI')
   }
@@ -305,7 +306,7 @@ export function validateCollection(
           return undefined
         }
 
-        return [contract.name, new Interface(contractInterface.abi)]
+        return [contract.name, createEthersInterface(contractInterface.abi)]
       })
       .filter((x) => x) as [string, Interface][],
   )

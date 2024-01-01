@@ -2,6 +2,7 @@
 
 import { CollectionDataManager } from '../'
 import { saveToIPFS } from '../../../ipfs'
+import { createEthersInterface, normalizeABI } from '../../../util'
 import { ContractDefinition, ContractInterface } from '../../spec'
 import { generateContractId } from '../../util'
 import {
@@ -260,7 +261,7 @@ export class ContractManagerView {
     for (const contractInterface of this.#dataManager.data.contractInterfaces) {
       this.#ethersContractInterfaces.set(
         contractInterface.hash,
-        new Interface(contractInterface.abi),
+        createEthersInterface(contractInterface.abi),
       )
       this.#contractInterfaces.set(contractInterface.hash, contractInterface)
     }
@@ -282,7 +283,7 @@ export class ContractManagerView {
       ): void | Promise<void> {
         ethersContractInterfaces.set(
           event.data.contractInterface.hash,
-          new Interface(event.data.contractInterface.abi),
+          createEthersInterface(event.data.contractInterface.abi),
         )
         contractInterfaces.set(
           event.data.contractInterface.hash,
@@ -396,18 +397,6 @@ export class ContractManagerView {
       }
     }
   }
-}
-
-/**
- * Normalizes an ABI by removing duplicate entries.
- * @param abi
- */
-function normalizeABI(abi: string): string {
-  return JSON.stringify(
-    [...new Set(JSON.parse(abi).map(JSON.stringify))]
-      .sort()
-      .map((s) => JSON.parse(s as string)),
-  )
 }
 
 function intersect(a: Set<number>, b: number[]) {

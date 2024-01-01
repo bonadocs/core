@@ -5,6 +5,7 @@
   Interface,
 } from 'ethers'
 
+import { createEthersInterface } from '../../../util'
 import { ContractElementFragment } from '../../types'
 import { CollectionDataManager } from '../CollectionDataManager'
 
@@ -35,7 +36,7 @@ export class ContractDetailsView {
         `Contract interface with hash ${contract.interfaceHash} not found`,
       )
     }
-    this.#contractInterface = new Interface(contractInterface.abi)
+    this.#contractInterface = createEthersInterface(contractInterface.abi)
     this.populateInternalDataStructures()
   }
 

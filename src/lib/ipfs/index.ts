@@ -4,13 +4,13 @@ import { File, NFTStorage } from 'nft.storage'
 import { config } from '../config'
 
 const ipfsGateways = [
+  'https://ipfs.nftstorage.link',
   'https://ipfs.io',
   'https://gateway.ipfs.io',
   'https://dweb.link',
   'https://cf-ipfs.com',
   'https://cloudflare-ipfs.com',
   'https://hardbin.com',
-  'https://ipfs.nftstorage.link',
 ]
 
 let clients: AxiosInstance[]

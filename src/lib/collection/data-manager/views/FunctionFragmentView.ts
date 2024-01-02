@@ -20,7 +20,7 @@ export class FunctionFragmentView {
   readonly #fragmentKey: string
 
   // this works because the instance is the same
-  readonly #paths: Map<ParamType, string>
+  readonly #paths: Set<string>
 
   private constructor(
     valueManagerView: ValueManagerView,
@@ -29,7 +29,7 @@ export class FunctionFragmentView {
   ) {
     this.#valueManagerView = valueManagerView
     this.#fragment = fragment
-    this.#paths = new Map()
+    this.#paths = new Set()
     this.#displayData = []
     this.#id = `functionFragmentView-${generateRandomId()}`
     this.#fragmentKey = fragmentKey
@@ -215,28 +215,44 @@ export class FunctionFragmentView {
     return params
   }
 
-  private computeArgument(inputType: ParamType): ContractParam {
+  private computeArgument(
+    inputType: ParamType,
+    path = '',
+    pathOverride = false,
+  ): ContractParam {
+    const paramPath = generatePath(inputType, path, pathOverride)
     if (inputType.components) {
       const params: ContractParam = []
-      inputType.components.forEach((componentType) => {
-        params.push(this.computeArgument(componentType))
+      inputType.components.forEach((componentType, i) => {
+        params.push(
+          this.computeArgument(
+            componentType,
+            generatePathForComponent(paramPath, i),
+            true,
+          ),
+        )
       })
       return params
     }
 
-    const path = this.#paths.get(inputType)!
     if (inputType.arrayChildren) {
       const generatedCount = Number(this.getDataValue(path))
       const params: ContractParam = []
       for (let i = 0; i < generatedCount; i++) {
-        params.push(this.computeArgument(inputType.arrayChildren))
+        params.push(
+          this.computeArgument(
+            inputType.arrayChildren,
+            generatePathForComponent(paramPath, i),
+            true,
+          ),
+        )
       }
       return params
     }
 
-    const value = this.getDataValue(path)
+    const value = this.getDataValue(paramPath)
     if (value == null) {
-      throw new Error(`Value not set for ${path}`)
+      throw new Error(`Value not set for ${paramPath}`)
     }
 
     return value
@@ -250,7 +266,7 @@ export class FunctionFragmentView {
    * @param values
    * @param indent
    * @param path
-   * @param nameOverride
+   * @param pathOverride
    * @param extraParams
    * @private
    */
@@ -259,14 +275,10 @@ export class FunctionFragmentView {
     values: FragmentDisplayData,
     indent = 0,
     path = '',
-    nameOverride = false,
+    pathOverride = false,
     extraParams = {},
   ) {
-    const paramPath = nameOverride
-      ? path
-      : !path
-        ? paramType.name
-        : `${path}.${paramType.name}`
+    const paramPath = generatePath(paramType, path, pathOverride)
 
     if (paramType.components) {
       values.push({
@@ -284,7 +296,7 @@ export class FunctionFragmentView {
           componentType,
           values,
           indent + 1,
-          `${paramPath}.${i}`,
+          generatePathForComponent(paramPath, i),
         )
       }
       return
@@ -316,7 +328,7 @@ export class FunctionFragmentView {
           paramType.arrayChildren,
           values,
           indent + 1,
-          `${paramPath}.${i}`,
+          generatePathForComponent(paramPath, i),
           true,
           {
             arrayPath: paramPath,
@@ -328,7 +340,7 @@ export class FunctionFragmentView {
       return
     }
 
-    this.#paths.set(paramType, paramPath)
+    this.#paths.add(paramPath)
     values.push({
       indent,
       index: values.length,
@@ -483,4 +495,16 @@ export class FunctionFragmentView {
   #fragmentKeyWithPath(path?: string) {
     return path ? `${this.#fragmentKey}::${path}` : this.#fragmentKey
   }
+}
+
+function generatePath(paramType: ParamType, path = '', pathOverride = false) {
+  return pathOverride
+    ? path
+    : !path
+      ? paramType.name
+      : `${path}.${paramType.name}`
+}
+
+function generatePathForComponent(path: string, index: number) {
+  return `${path}.${index}`
 }

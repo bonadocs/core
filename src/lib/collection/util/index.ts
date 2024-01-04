@@ -18,3 +18,16 @@ export function generateRandomId(): string {
 function generateId(props: string[]): string {
   return id(props.join('\n')).slice(0, 10)
 }
+
+export function intersect(a: Set<number>, b: number[]): Set<number> {
+  const intersection = new Set<number>()
+
+  // remove from a if not in intersection
+  for (const value of b) {
+    if (!a.has(value)) {
+      intersection.add(value)
+    }
+  }
+
+  return intersection
+}

@@ -1,5 +1,6 @@
 ﻿import { Event } from '../../events'
 import {
+  CodeSnippetLanguage,
   ContractDefinition,
   ContractInterface,
   Link,
@@ -86,6 +87,10 @@ export type RenameCollectionWorkflowEventData = {
   workflowId: string
   name: string
 }
+export type RemoveCollectionWorkflowEventData = {
+  collectionId: string
+  workflowId: string
+}
 export type AddCollectionWorkflowVariableEventData = {
   collectionId: string
   workflowId: string
@@ -111,6 +116,17 @@ export type RemoveCollectionWorkflowFunctionEventData = {
   collectionId: string
   workflowId: string
   functionKey: string
+}
+export type SetCollectionWorkflowCodeEventData = {
+  collectionId: string
+  workflowId: string
+  language: CodeSnippetLanguage
+  code: string
+}
+export type DeleteCollectionWorkflowCodeEventData = {
+  collectionId: string
+  workflowId: string
+  language: CodeSnippetLanguage
 }
 export type AddArrayItemEventData = {
   viewId: string
@@ -198,6 +214,10 @@ export type RenameCollectionWorkflowEvent = Event<
   'collection:rename-workflow',
   RenameCollectionWorkflowEventData
 >
+export type RemoveCollectionWorkflowEvent = Event<
+  'collection:remove-workflow',
+  RemoveCollectionWorkflowEventData
+>
 export type AddCollectionWorkflowVariableEvent = Event<
   'collection:add-workflow-variable',
   AddCollectionWorkflowVariableEventData
@@ -217,6 +237,14 @@ export type AddCollectionWorkflowFunctionEvent = Event<
 export type RemoveCollectionWorkflowFunctionEvent = Event<
   'collection:remove-workflow-function',
   RemoveCollectionWorkflowFunctionEventData
+>
+export type SetCollectionWorkflowCodeEvent = Event<
+  'collection:set-workflow-code',
+  SetCollectionWorkflowCodeEventData
+>
+export type DeleteCollectionWorkflowCodeEvent = Event<
+  'collection:delete-workflow-code',
+  DeleteCollectionWorkflowCodeEventData
 >
 export type AddArrayItemEvent = Event<'add-array-item', AddArrayItemEventData>
 export type RemoveArrayItemEvent = Event<

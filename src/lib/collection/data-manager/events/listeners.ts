@@ -1,12 +1,17 @@
-﻿import { EventEmitter, EventListener } from '../../events'
+﻿import { Interface } from 'ethers'
+
+import { EventEmitter, EventListener } from '../../events'
 import {
+  CodeSnippet,
   CollectionData,
   ContractDefinition,
   ContractInterface,
   Link,
   validateContractInterface,
   VariableDefinition,
+  WorkflowDefinition,
 } from '../../spec'
+import { intersect } from '../../util'
 
 import {
   AddCollectionContractEvent,
@@ -26,6 +31,8 @@ import {
   AddCollectionWorkflowVariableEvent,
   AddCollectionWorkflowVariableEventData,
   DeleteCollectionStringEvent,
+  DeleteCollectionWorkflowCodeEvent,
+  DeleteCollectionWorkflowCodeEventData,
   RemoveCollectionContractEvent,
   RemoveCollectionContractEventData,
   RemoveCollectionContractInstanceEvent,
@@ -36,6 +43,8 @@ import {
   RemoveCollectionLinkEventData,
   RemoveCollectionVariableEvent,
   RemoveCollectionVariableEventData,
+  RemoveCollectionWorkflowEvent,
+  RemoveCollectionWorkflowEventData,
   RemoveCollectionWorkflowFunctionEvent,
   RemoveCollectionWorkflowFunctionEventData,
   RemoveCollectionWorkflowVariableEvent,
@@ -52,6 +61,8 @@ import {
   RenameCollectionWorkflowEventData,
   RenameCollectionWorkflowVariableEvent,
   RenameCollectionWorkflowVariableEventData,
+  SetCollectionWorkflowCodeEvent,
+  SetCollectionWorkflowCodeEventData,
   UpdateCollectionDescriptionEvent,
   UpdateCollectionDescriptionEventData,
   UpdateCollectionStringEvent,
@@ -135,6 +146,10 @@ export function registerDataUpdateListeners(
     new RenameCollectionWorkflowEventListener(data),
   )
   eventEmitter.on(
+    'collection:remove-workflow',
+    new RemoveCollectionWorkflowEventListener(data),
+  )
+  eventEmitter.on(
     'collection:add-workflow-variable',
     new AddCollectionWorkflowVariableEventListener(data),
   )
@@ -153,6 +168,14 @@ export function registerDataUpdateListeners(
   eventEmitter.on(
     'collection:remove-workflow-function',
     new RemoveCollectionWorkflowFunctionEventListener(data),
+  )
+  eventEmitter.on(
+    'collection:set-workflow-code',
+    new SetWorkflowCodeEventListener(data),
+  )
+  eventEmitter.on(
+    'collection:delete-workflow-code',
+    new DeleteWorkflowCodeEventListener(data),
   )
 }
 
@@ -731,6 +754,34 @@ class RenameCollectionWorkflowEventListener
   }
 }
 
+class RemoveCollectionWorkflowEventListener
+  implements
+    EventListener<
+      'collection:remove-workflow',
+      RemoveCollectionWorkflowEventData
+    >
+{
+  private previousWorkflow: WorkflowDefinition | undefined
+
+  constructor(private readonly collectionData: CollectionData) {}
+
+  process(event: RemoveCollectionWorkflowEvent) {
+    const index = this.collectionData.workflows.findIndex(
+      (workflow) => workflow.id === event.data.workflowId,
+    )
+    if (index >= 0) {
+      this.previousWorkflow = this.collectionData.workflows[index]
+      this.collectionData.workflows.splice(index, 1)
+    }
+  }
+
+  undo() {
+    if (this.previousWorkflow !== undefined) {
+      this.collectionData.workflows.push(this.previousWorkflow)
+    }
+  }
+}
+
 class AddCollectionWorkflowVariableEventListener
   implements
     EventListener<
@@ -863,7 +914,10 @@ class AddCollectionWorkflowFunctionEventListener
       AddCollectionWorkflowFunctionEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  private interfaces: Map<string, Interface>
+  constructor(private readonly collectionData: CollectionData) {
+    this.interfaces = new Map()
+  }
 
   process(event: AddCollectionWorkflowFunctionEvent) {
     const workflow = this.collectionData.workflows.find(
@@ -878,12 +932,15 @@ class AddCollectionWorkflowFunctionEventListener
     }
 
     if (
-      workflow.execution.length === 0 ||
-      typeof workflow.execution[0] === 'string'
+      workflow.execution.length > 0 &&
+      typeof workflow.execution[0] !== 'string'
     ) {
-      const execution = workflow.execution as string[]
-      execution.push(event.data.functionKey)
+      return
     }
+
+    const execution = workflow.execution as string[]
+    this.validateWorkflowFunctions([...execution, event.data.functionKey])
+    execution.push(event.data.functionKey)
   }
 
   undo(event: AddCollectionWorkflowFunctionEvent) {
@@ -900,6 +957,54 @@ class AddCollectionWorkflowFunctionEventListener
     if (index >= 0) {
       workflow.execution.splice(index, 1)
     }
+  }
+
+  private validateWorkflowFunctions(functions: string[]) {
+    let activeNetworks: Set<number> | undefined
+
+    for (const f of functions) {
+      const contractId = f.split('.')[0]
+      const contract = this.collectionData.contracts.find(
+        (contract) => contract.id === contractId,
+      )
+      if (!contract) {
+        throw new Error(`Contract '${contractId}' not found`)
+      }
+
+      const iface = this.getInterface(contract.interfaceHash)
+      if (!iface) {
+        throw new Error(
+          `Contract interface '${contract.interfaceHash}' not found`,
+        )
+      }
+
+      const chainIds = contract.instances.map((instance) => instance.chainId)
+      if (!activeNetworks) {
+        activeNetworks = new Set(chainIds)
+      } else {
+        activeNetworks = intersect(activeNetworks, chainIds)
+      }
+      if (activeNetworks.size === 0) {
+        throw new Error('Workflow functions must be on the same networks')
+      }
+    }
+  }
+
+  private getInterface(hash: string) {
+    if (this.interfaces.has(hash)) {
+      return this.interfaces.get(hash)!
+    }
+
+    const contractInterface = this.collectionData.contractInterfaces.find(
+      (iface) => iface.hash === hash,
+    )
+
+    if (!contractInterface) {
+      throw new Error(`Contract interface '${hash}' not found`)
+    }
+
+    this.interfaces.set(hash, new Interface(contractInterface.abi))
+    return this.interfaces.get(hash)!
   }
 }
 
@@ -941,5 +1046,107 @@ class RemoveCollectionWorkflowFunctionEventListener
 
     const execution = workflow.execution as string[]
     execution.push(this.previousFunctionKey)
+  }
+}
+
+class SetWorkflowCodeEventListener
+  implements
+    EventListener<
+      'collection:set-workflow-code',
+      SetCollectionWorkflowCodeEventData
+    >
+{
+  constructor(private readonly collectionData: CollectionData) {}
+
+  process(event: SetCollectionWorkflowCodeEvent) {
+    const workflow = this.collectionData.workflows.find(
+      (workflow) => workflow.id === event.data.workflowId,
+    )
+    if (!workflow) {
+      return
+    }
+
+    if (!workflow.execution) {
+      workflow.execution = []
+    }
+
+    if (
+      workflow.execution.length === 0 ||
+      typeof workflow.execution[0] !== 'string'
+    ) {
+      const execution = workflow.execution as CodeSnippet[]
+      execution.push({
+        code: event.data.code,
+        language: event.data.language,
+      })
+    }
+  }
+
+  undo(event: SetCollectionWorkflowCodeEvent) {
+    const workflow = this.collectionData.workflows.find(
+      (workflow) => workflow.id === event.data.workflowId,
+    )
+    if (!workflow?.execution) {
+      return
+    }
+
+    const execution = workflow.execution as CodeSnippet[]
+    const index = execution.findIndex(
+      (snippet) => snippet.language === event.data.language,
+    )
+    if (index >= 0) {
+      execution.splice(index, 1)
+    }
+  }
+}
+
+class DeleteWorkflowCodeEventListener
+  implements
+    EventListener<
+      'collection:delete-workflow-code',
+      DeleteCollectionWorkflowCodeEventData
+    >
+{
+  private previousSnippet: CodeSnippet | undefined
+
+  constructor(private readonly collectionData: CollectionData) {}
+
+  process(event: DeleteCollectionWorkflowCodeEvent) {
+    const workflow = this.collectionData.workflows.find(
+      (workflow) => workflow.id === event.data.workflowId,
+    )
+    if (!workflow) {
+      return
+    }
+
+    const isSnippetWorkflow =
+      !workflow.execution.length || typeof workflow.execution[0] === 'object'
+
+    if (!isSnippetWorkflow) {
+      throw new Error(
+        'Cannot delete code for non-snippet workflow. Remove all functions first.',
+      )
+    }
+
+    const execution = workflow.execution as CodeSnippet[]
+    const index = execution.findIndex(
+      (snippet) => snippet.language === event.data.language,
+    )
+    if (index >= 0) {
+      this.previousSnippet = execution[index]
+      execution.splice(index, 1)
+    }
+  }
+
+  undo(event: DeleteCollectionWorkflowCodeEvent) {
+    const workflow = this.collectionData.workflows.find(
+      (workflow) => workflow.id === event.data.workflowId,
+    )
+    if (!workflow || !this.previousSnippet) {
+      return
+    }
+
+    const execution = workflow.execution as CodeSnippet[]
+    execution.push(this.previousSnippet)
   }
 }

@@ -22,9 +22,8 @@ function generateId(props: string[]): string {
 export function intersect(a: Set<number>, b: number[]): Set<number> {
   const intersection = new Set<number>()
 
-  // remove from a if not in intersection
   for (const value of b) {
-    if (!a.has(value)) {
+    if (a.has(value)) {
       intersection.add(value)
     }
   }

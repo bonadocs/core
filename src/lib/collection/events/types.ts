@@ -18,11 +18,14 @@
   | 'collection:remove-variable'
   | 'collection:add-workflow'
   | 'collection:rename-workflow'
+  | 'collection:remove-workflow'
   | 'collection:add-workflow-variable'
   | 'collection:rename-workflow-variable'
   | 'collection:remove-workflow-variable'
   | 'collection:add-workflow-function'
   | 'collection:remove-workflow-function'
+  | 'collection:set-workflow-code'
+  | 'collection:delete-workflow-code'
 
 export type FunctionViewEventType = 'add-array-item' | 'remove-array-item'
 

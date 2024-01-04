@@ -16,12 +16,14 @@ import {
   FunctionFragmentView,
   ValueManagerView,
 } from './views'
+import { WorkflowManagerView } from './views/WorkflowManagerView'
 export class CollectionDataManager {
   readonly #data: CollectionData
   readonly #eventEmitter: EventEmitter
   #environmentManagerView: CollectionEnvironmentManagerView | undefined
   #metadataView: CollectionMetadataView | undefined
   #contractManagerView: ContractManagerView | undefined
+  #workflowManagerView: WorkflowManagerView | undefined
   #valueManagerView: ValueManagerView | undefined
   #contractDetailsViews = new Map<string, ContractDetailsView>()
   #functionFragmentViews = new Map<string, Map<string, FunctionFragmentView>>()
@@ -87,35 +89,42 @@ export class CollectionDataManager {
     return this.#data
   }
 
-  get environmentManagerView() {
+  get environmentManagerView(): CollectionEnvironmentManagerView {
     if (!this.#environmentManagerView) {
       this.#environmentManagerView = new CollectionEnvironmentManagerView(this)
     }
     return this.#environmentManagerView
   }
 
-  get metadataView() {
+  get metadataView(): CollectionMetadataView {
     if (!this.#metadataView) {
       this.#metadataView = new CollectionMetadataView(this)
     }
     return this.#metadataView
   }
 
-  get contractManagerView() {
+  get workflowManagerView(): WorkflowManagerView {
+    if (!this.#workflowManagerView) {
+      this.#workflowManagerView = new WorkflowManagerView(this)
+    }
+    return this.#workflowManagerView
+  }
+
+  get contractManagerView(): ContractManagerView {
     if (!this.#contractManagerView) {
       this.#contractManagerView = new ContractManagerView(this)
     }
     return this.#contractManagerView
   }
 
-  get valueManagerView() {
+  get valueManagerView(): ValueManagerView {
     if (!this.#valueManagerView) {
       this.#valueManagerView = new ValueManagerView(this)
     }
     return this.#valueManagerView
   }
 
-  getContractDetailsView(contractId: string) {
+  getContractDetailsView(contractId: string): ContractDetailsView {
     let view = this.#contractDetailsViews.get(contractId)
     if (!view) {
       view = new ContractDetailsView(this, contractId)

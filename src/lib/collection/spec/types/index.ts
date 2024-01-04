@@ -87,12 +87,14 @@ export interface ExecutionContext {
   simulationOverrides?: SimulationOverrides
 }
 
+export type CodeSnippetLanguage = 'js'
+
 export interface CodeSnippet {
   /**
    * The code to execute.
    */
   code: string
-  language: 'js'
+  language: CodeSnippetLanguage
 }
 
 export type WorkflowDefinition = {

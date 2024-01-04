@@ -232,7 +232,8 @@ function validateWorkflowFunctions(
 ): ValidationResult {
   result = result || createValidationResult()
   for (const step of steps || []) {
-    const [contractId, functionSelector] = step.split('.')
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [contractId, _, functionSelector] = step.split('.')
     if (!contracts.has(contractId)) {
       result.errors.push(
         `Invalid contract id '${contractId}' in workflow '${workflowId}'`,
@@ -306,7 +307,7 @@ export function validateCollection(
           return undefined
         }
 
-        return [contract.name, createEthersInterface(contractInterface.abi)]
+        return [contract.id, createEthersInterface(contractInterface.abi)]
       })
       .filter((x) => x) as [string, Interface][],
   )

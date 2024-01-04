@@ -1,7 +1,6 @@
 ﻿import { Interface, sha256, toUtf8Bytes } from 'ethers'
 
 import { CollectionDataManager } from '../'
-import { saveToIPFS } from '../../../ipfs'
 import { createEthersInterface, normalizeABI } from '../../../util'
 import { ContractDefinition, ContractInterface } from '../../spec'
 import { generateContractId } from '../../util'
@@ -60,21 +59,6 @@ export class ContractManagerView {
 
   get interfaces() {
     return this.#contractInterfaces.values()
-  }
-
-  /**
-   * Generates a widget from the given functions and
-   * returns the IPFS URI.
-   * @param functions
-   */
-  async generateWidget(functions: string[]): Promise<string> {
-    this.validateWidgetFunctions(functions)
-    const collectionURI = await this.#dataManager.publishToIPFS()
-    const widgetConfig = {
-      collectionURI,
-      functions,
-    }
-    return saveToIPFS(JSON.stringify(widgetConfig))
   }
 
   async addContractInterface(name: string, abi: string) {
@@ -363,55 +347,5 @@ export class ContractManagerView {
       'collection:remove-contract-instance',
       createEventListener(() => this.#onContractInstanceRemoved),
     )
-  }
-
-  private validateWidgetFunctions(functions: string[]) {
-    const activeNetworks = new Set<number>()
-    for (const f of functions) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [contractId, _, fragmentKey] = f.split('.')
-      const contract = this.#contractDefinitions.get(contractId)
-      if (!contract) {
-        throw new Error(`Contract '${contractId}' not found`)
-      }
-      const iface = this.#ethersContractInterfaces.get(contract.interfaceHash)
-      if (!iface) {
-        throw new Error(
-          `Contract interface '${contract.interfaceHash}' not found`,
-        )
-      }
-
-      const chainIds = contract.instances.map((instance) => instance.chainId)
-      if (activeNetworks.size === 0) {
-        addAll(activeNetworks, chainIds)
-      } else {
-        intersect(activeNetworks, chainIds)
-      }
-      if (activeNetworks.size === 0) {
-        throw new Error('Widget functions must be on the same networks')
-      }
-
-      const fragment = iface.getFunction(fragmentKey)
-      if (!fragment) {
-        throw new Error(`Function '${fragmentKey}' not found`)
-      }
-    }
-  }
-}
-
-function intersect(a: Set<number>, b: number[]) {
-  const intersection = new Set(b.filter((value) => a.has(value)))
-
-  // remove from a if not in intersection
-  for (const value of a) {
-    if (!intersection.has(value)) {
-      a.delete(value)
-    }
-  }
-}
-
-function addAll(a: Set<number>, b: number[]) {
-  for (const value of b) {
-    a.add(value)
   }
 }

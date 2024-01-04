@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import { id } from 'ethers'
 import { File, NFTStorage } from 'nft.storage'
 
 import { config } from '../config'
+import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
   'https://ipfs.nftstorage.link',
@@ -46,12 +48,18 @@ async function loadFromSingleClient(
  * @param cid
  */
 export async function loadFromIPFS(cid: string): Promise<unknown> {
+  const cached = await loadIPFSDataFromCache(cid)
+  if (cached) {
+    return cached
+  }
+
   const clients = getClients()
   for (let i = 0; i < clients.length; i++) {
     const j = count % clients.length
     try {
       const result = await loadFromSingleClient(clients[j], cid)
       if (result?.data) {
+        await cacheIPFSData(cid, result.data)
         return result.data
       }
     } catch {
@@ -74,9 +82,38 @@ export async function loadFromIPFSWithTimeout(
 }
 
 export async function saveToIPFS(data: string): Promise<string> {
-  // generate key and iv
+  const hash = id(data)
+
+  const metadataStore = await getMetadataStore()
+  const existing = await metadataStore.get(`ipfs-hash:${hash}`)
+  if (existing) {
+    return existing
+  }
+
   const cid = await nftStorage.storeBlob(
     new File([new TextEncoder().encode(data)], ''),
   )
-  return `ipfs://${cid}`
+  const uri = `ipfs://${cid}`
+  await metadataStore.set(`ipfs-hash:${hash}`, uri)
+  await cacheIPFSData(cid, data)
+  return uri
+}
+
+async function loadIPFSDataFromCache(cid: string): Promise<unknown> {
+  const metadataStore = await getMetadataStore()
+  const data = await metadataStore.get(`ipfs-data:${cid}`)
+  if (!data) {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(data)
+  } catch {
+    return data
+  }
+}
+
+async function cacheIPFSData(cid: string, data: unknown): Promise<void> {
+  const metadataStore = await getMetadataStore()
+  await metadataStore.set(`ipfs-data:${cid}`, JSON.stringify(data))
 }

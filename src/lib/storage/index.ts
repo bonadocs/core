@@ -8,6 +8,7 @@ import {
 
 const collectionStores: Record<string, StorageAPI> = {}
 let searchDBStore: StorageAPI | undefined = undefined
+let metadataStore: StorageAPI | undefined = undefined
 
 export { getLocalCollectionNames, deleteCollectionName }
 
@@ -42,4 +43,12 @@ export async function getSearchDBStore(): Promise<StorageAPI> {
   }
 
   return searchDBStore
+}
+
+export async function getMetadataStore(): Promise<StorageAPI> {
+  if (!metadataStore) {
+    metadataStore = await UnifiedStorage.create('metadata', 'index')
+  }
+
+  return metadataStore
 }

@@ -102,7 +102,7 @@ export type WorkflowDefinition = {
   name: string
   variables: VariableDefinition[]
   /**
-   * Array of `contractId.functionSelector` or code snippets.
+   * Array of `<contractId>.function.<functionSelector>` or code snippets.
    * For each supported language, there must be at most one code snippet.
    * When an array of strings is passed, they will be executed in order.
    * When an array of code snippets is passed, the snippet for the language

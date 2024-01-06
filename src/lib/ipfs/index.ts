@@ -1,6 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { id } from 'ethers'
-import { File, NFTStorage } from 'nft.storage'
 
 import { config } from '../config'
 import { getMetadataStore } from '../storage'
@@ -17,7 +16,13 @@ const ipfsGateways = [
 
 let clients: AxiosInstance[]
 let count = 0
-const nftStorage = new NFTStorage({ token: config.nftStorageApiKey })
+const nftStorageClient = axios.create({
+  baseURL: 'https://api.nft.storage',
+  headers: {
+    Authorization: `Bearer ${config.nftStorageApiKey}`,
+  },
+  validateStatus: () => true,
+})
 
 function getClients(): AxiosInstance[] {
   if (!clients) {
@@ -90,9 +95,11 @@ export async function saveToIPFS(data: string): Promise<string> {
     return existing
   }
 
-  const cid = await nftStorage.storeBlob(
-    new File([new TextEncoder().encode(data)], ''),
-  )
+  const response = await nftStorageClient.post('/upload', data, {})
+  if (response.status !== 200) {
+    throw new Error(`Failed to save to IPFS: ${response.statusText}`)
+  }
+  const cid = await response.data.value.cid
   const uri = `ipfs://${cid}`
   await metadataStore.set(`ipfs-hash:${hash}`, uri)
   await cacheIPFSData(cid, data)

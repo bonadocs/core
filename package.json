@@ -1,6 +1,6 @@
 {
   "name": "@bonadocs/core",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Core library powering Bonadocs applications",
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",
@@ -43,8 +43,7 @@
   },
   "dependencies": {
     "axios": "^1.6.2",
-    "ethers": "^6.9.0",
-    "nft.storage": "^7.1.1"
+    "ethers": "^6.9.0"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",

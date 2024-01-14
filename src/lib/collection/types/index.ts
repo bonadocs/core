@@ -3,9 +3,20 @@
   ErrorFragment,
   EventFragment,
   FunctionFragment,
+  TransactionReceiptParams,
 } from 'ethers'
 
 import { VariableDefinition } from '../spec'
+
+export type ExecutionError = {
+  address?: string
+  message: string
+  data?: string
+}
+
+export type ExecutionResultData = Partial<TransactionReceiptParams> & {
+  error?: ExecutionError
+}
 
 interface FragmentDisplayDataEntry {
   baseType: string

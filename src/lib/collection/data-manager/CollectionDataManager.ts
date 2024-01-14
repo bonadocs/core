@@ -161,10 +161,7 @@ export class CollectionDataManager {
     contractViews.delete(fragmentKey)
   }
 
-  private async createFunctionFragmentView(
-    contractId: string,
-    fragmentKey: string,
-  ) {
+  private createFunctionFragmentView(contractId: string, fragmentKey: string) {
     const contractDetailsView = this.getContractDetailsView(contractId)
     const fragment = contractDetailsView.getFragment(fragmentKey)
     if (fragment?.fragment instanceof FunctionFragment) {

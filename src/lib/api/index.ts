@@ -1,9 +1,14 @@
 import axios, { AxiosInstance } from 'axios'
 import { TransactionReceiptParams } from 'ethers'
 
-import { ExecutableEVMCall } from '../collection'
+import { ExecutableEVMCall, ExecutionError } from '../collection'
 import { config } from '../config'
 import { jsonUtils } from '../util'
+
+export type SimulationResponseData = {
+  error?: ExecutionError
+  receipt: TransactionReceiptParams
+}
 
 class BonadocsAPI {
   private readonly client: AxiosInstance
@@ -40,7 +45,7 @@ class BonadocsAPI {
   async simulateEVMBundle(
     chainId: number,
     calls: ExecutableEVMCall[],
-  ): Promise<TransactionReceiptParams[] | undefined> {
+  ): Promise<SimulationResponseData[] | undefined> {
     try {
       const response = await this.client.post(
         `/simulate?chainId=${chainId}`,

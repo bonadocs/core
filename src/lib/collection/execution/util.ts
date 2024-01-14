@@ -1,6 +1,7 @@
 ﻿import { JsonRpcProvider, ParamType, Provider, Result, toBeHex } from 'ethers'
 
 import { supportedChains } from '../../chains'
+import type { CodeSnippet } from '../spec'
 
 export type DisplayResult = Record<string, unknown>
 
@@ -57,4 +58,14 @@ function getProviderFromChainId(chainId: number) {
   }
 
   return null
+}
+
+export function getExecutionType(
+  execution: string[] | CodeSnippet[] | undefined,
+) {
+  if (!execution?.length) {
+    return
+  }
+
+  return typeof execution[0] === 'string' ? 'functions' : 'snippet'
 }

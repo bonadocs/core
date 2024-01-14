@@ -1,5 +1,5 @@
 ﻿import { DisplayResult } from './util'
-export * from './TransactionReceiptWithParsedLogs'
-export * from './Executor'
+export * from './ExecutionResult'
+export * from './FunctionExecutor'
 
 export { DisplayResult }

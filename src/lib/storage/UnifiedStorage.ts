@@ -1,8 +1,4 @@
-﻿import os from 'os'
-import path from 'path'
-
-import { IndexedDBStorage } from './IndexedDBStorage'
-import { StorageAPI, TransactionFunction } from './StorageAPI'
+﻿import { StorageAPI, TransactionFunction } from './StorageAPI'
 
 type TaskCallback = (value: unknown) => void
 
@@ -228,12 +224,15 @@ export class UnifiedStorage implements StorageAPI {
       typeof window !== 'undefined' &&
       typeof window?.indexedDB === 'object'
     ) {
+      const { IndexedDBStorage } = await import('./IndexedDBStorage')
       return new IndexedDBStorage(dbName, storeName)
     }
 
     if (typeof process === 'object' && process?.versions?.node) {
       const { FileStorage } = await import('./FileStorage')
-      const directory = path.join(os.homedir(), '.bonadocs', 'storage', dbName)
+      const { homedir } = await import('os')
+      const { join } = await import('path')
+      const directory = join(homedir(), '.bonadocs', 'storage', dbName)
       return await FileStorage.create(directory, storeName)
     }
 

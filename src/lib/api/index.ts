@@ -31,7 +31,7 @@ class BonadocsAPI {
   ): Promise<string | undefined> {
     try {
       const response = await this.client.get(
-        `/contract?address=${address}&chainId=${chainId}`,
+        `/contracts?address=${address}&chainId=${chainId}`,
       )
       if (response.data?.data?.abi) {
         return response.data.data.abi

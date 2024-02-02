@@ -38,7 +38,7 @@ export async function downloadFileFromSearchDB(
       return
     }
     const content = await response.text()
-    const expiry = Date.now() + 1000 * 60 * 60 * 2 // 2 hours
+    const expiry = Date.now() + 1000 * 60 * 60 * 24 // 24 hours
     const dbFile: SearchDBFile = { path: pathInRepo, content, expiry }
     await storage.set(pathInRepo, JSON.stringify(dbFile))
     fileContent = content

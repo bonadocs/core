@@ -20,6 +20,13 @@ export async function downloadFileFromSearchDB(
   pathInRepo: string,
 ): Promise<string | null> {
   try {
+    const fetchPromise = fetch(searchDBRoot + pathInRepo).then((response) => {
+      if (response.status !== 200) {
+        return null
+      }
+      return response.text()
+    })
+
     const storage = await getSearchDBStore()
     let fileContent: string | null = null
     await storage.transaction(async (storage) => {
@@ -32,14 +39,12 @@ export async function downloadFileFromSearchDB(
         }
       }
 
-      const url = searchDBRoot + pathInRepo
-      const response = await fetch(url)
-      if (response.status !== 200) {
+      const content = await fetchPromise
+      if (!content) {
         fileContent = null
         return
       }
-      const content = await response.text()
-      const expiry = Date.now() + 1000 * 60 * 60 * 2 // 2 hours
+      const expiry = Date.now() + 1000 * 60 * 60 * 24 // 24 hours
       const dbFile: SearchDBFile = { path: pathInRepo, content, expiry }
       await storage.set(pathInRepo, JSON.stringify(dbFile))
       fileContent = content

@@ -29,8 +29,8 @@ interface ExecutableFunctionConfiguration {
 
 export class FunctionExecutor {
   readonly functions: readonly ExecutableFunctionConfiguration[]
+  readonly supportedChains: Set<number>
   private readonly _transactionSimulator: TransactionSimulator
-  private readonly supportedChains: Set<number>
   private readonly contractAddresses: Map<number, Map<string, string>>
   private signer: Signer | null = null
   private provider: Provider | null = null

@@ -6,10 +6,11 @@
 export class IndexedDBStorage implements StorageAPI {
   readonly #dbPromise: Promise<void>
   #db: IDBDatabase | null = null
+  #storeName = 'key-value-store'
 
   constructor(
     private readonly dbName: string,
-    private readonly storeName: string,
+    private readonly dataKey: string,
     private readonly version = 1,
   ) {
     this.#dbPromise = this.openDatabase()
@@ -39,38 +40,41 @@ export class IndexedDBStorage implements StorageAPI {
 
       request.onupgradeneeded = () => {
         const db = request.result
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName)
+        if (!db.objectStoreNames.contains(this.#storeName)) {
+          db.createObjectStore(this.#storeName)
         }
       }
     })
   }
 
   async get(key: string): Promise<string | null> {
+    key = `${this.dataKey}-${key}`
     await this.#dbPromise
     return new Promise((resolve, reject) => {
-      const transaction = this.#db!.transaction(this.storeName, 'readonly')
-      const request = transaction.objectStore(this.storeName).get(key)
+      const transaction = this.#db!.transaction(this.#storeName, 'readonly')
+      const request = transaction.objectStore(this.#storeName).get(key)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
   }
 
   async set(key: string, value: string): Promise<void> {
+    key = `${this.dataKey}-${key}`
     await this.#dbPromise
     return new Promise((resolve, reject) => {
-      const transaction = this.#db!.transaction(this.storeName, 'readwrite')
-      const request = transaction.objectStore(this.storeName).put(value, key)
+      const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
+      const request = transaction.objectStore(this.#storeName).put(value, key)
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
     })
   }
 
   async remove(key: string): Promise<void> {
+    key = `${this.dataKey}-${key}`
     await this.#dbPromise
     return new Promise((resolve, reject) => {
-      const transaction = this.#db!.transaction(this.storeName, 'readwrite')
-      const request = transaction.objectStore(this.storeName).delete(key)
+      const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
+      const request = transaction.objectStore(this.#storeName).delete(key)
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
     })

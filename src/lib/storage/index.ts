@@ -9,6 +9,7 @@ import {
 const collectionStores: Record<string, StorageAPI> = {}
 let searchDBStore: StorageAPI | undefined = undefined
 let metadataStore: StorageAPI | undefined = undefined
+let codeCacheStore: StorageAPI | undefined = undefined
 
 export { getLocalCollectionNames, deleteCollectionName }
 
@@ -51,4 +52,12 @@ export async function getMetadataStore(): Promise<StorageAPI> {
   }
 
   return metadataStore
+}
+
+export async function getCodeCacheStore(): Promise<StorageAPI> {
+  if (!codeCacheStore) {
+    codeCacheStore = await UnifiedStorage.create('code-cache', 'index')
+  }
+
+  return codeCacheStore
 }

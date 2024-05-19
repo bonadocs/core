@@ -9,14 +9,22 @@ import { createEthersInterface } from '../../../util'
 import { ContractElementFragment } from '../../types'
 import { CollectionDataManager } from '../CollectionDataManager'
 
+import { ValueManagerView } from './ValueManagerView'
+
 export class ContractDetailsView {
   readonly #dataManager: CollectionDataManager
+  readonly #valueManagerView: ValueManagerView
   readonly #fragments: Map<string, ContractElementFragment>
   readonly #contractId: string
   readonly #contractInterface: Interface
 
-  constructor(dataManager: CollectionDataManager, contractId: string) {
+  constructor(
+    dataManager: CollectionDataManager,
+    valueManagerView: ValueManagerView,
+    contractId: string,
+  ) {
     this.#dataManager = dataManager
+    this.#valueManagerView = valueManagerView
     this.#contractId = contractId
     this.#fragments = new Map<string, ContractElementFragment>()
     const contract = this.#dataManager.data.contracts.find(
@@ -42,6 +50,16 @@ export class ContractDetailsView {
 
   getFragment(key: string) {
     return this.#fragments.get(key)
+  }
+
+  async setDocText(text: string) {
+    const fullKey = `docs::contracts::${this.#contractId}::text`
+    await this.#valueManagerView.setString(fullKey, text)
+  }
+
+  async getDocText() {
+    const fullKey = `docs::contracts::${this.#contractId}::text`
+    return this.#valueManagerView.getString(fullKey)
   }
 
   getFunctionFragment(key: string) {

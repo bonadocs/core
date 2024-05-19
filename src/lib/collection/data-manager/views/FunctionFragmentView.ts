@@ -8,12 +8,13 @@
 } from 'ethers'
 
 import { ContractParam, FragmentDisplayData } from '../../types'
-import { generateRandomId } from '../../util'
 
+import { CollectionEnvironmentManagerView } from './CollectionEnvironmentManagerView'
 import { ValueManagerView } from './ValueManagerView'
 
 export class FunctionFragmentView {
   readonly #valueManagerView: ValueManagerView
+  readonly #environmentManagerView: CollectionEnvironmentManagerView
   readonly #fragment: FunctionFragment
   readonly #displayData: FragmentDisplayData
   readonly #id: string
@@ -24,14 +25,16 @@ export class FunctionFragmentView {
 
   private constructor(
     valueManagerView: ValueManagerView,
+    environmentManagerView: CollectionEnvironmentManagerView,
     fragmentKey: string,
     fragment: FunctionFragment,
   ) {
     this.#valueManagerView = valueManagerView
+    this.#environmentManagerView = environmentManagerView
     this.#fragment = fragment
     this.#paths = new Set()
     this.#displayData = []
-    this.#id = `functionFragmentView-${generateRandomId()}`
+    this.#id = `functionFragmentView-${fragmentKey}`
     this.#fragmentKey = fragmentKey
   }
 
@@ -39,16 +42,19 @@ export class FunctionFragmentView {
    * Creates a new FunctionFragmentView for the given function fragment.
    *
    * @param valueManagerView
+   * @param environmentManagerView
    * @param fragmentKey
    * @param fragment
    */
   static async create(
     valueManagerView: ValueManagerView,
+    environmentManagerView: CollectionEnvironmentManagerView,
     fragmentKey: string,
     fragment: FunctionFragment,
   ) {
     const view = new FunctionFragmentView(
       valueManagerView,
+      environmentManagerView,
       fragmentKey,
       fragment,
     )
@@ -164,18 +170,20 @@ export class FunctionFragmentView {
     const generatedCount = Number(this.getDataValue(arrayDefinition.path))
     for (let i = indexToDelete; i < generatedCount; i++) {
       if (i === generatedCount - 1) {
-        await this.deleteValuesForPath(arrayDefinition.path + '.' + i)
-        await this.deleteValuesForPath(arrayDefinition.path + '.' + i)
+        await this.deleteValuesForPath(arrayDefinition.path + '.' + i, 'data')
+        await this.deleteValuesForPath(arrayDefinition.path + '.' + i, 'doc')
       } else {
         await this.replaceValuesForPath(
           arrayDefinition.path + '.' + (i + 1),
           arrayDefinition.path + '.' + i,
-          false,
+          true,
+          'data',
         )
         await this.replaceValuesForPath(
           arrayDefinition.path + '.' + (i + 1),
           arrayDefinition.path + '.' + i,
-          false,
+          true,
+          'doc',
         )
       }
     }
@@ -212,7 +220,15 @@ export class FunctionFragmentView {
     this.#fragment.inputs.forEach((inputType) => {
       params.push(this.computeArgument(inputType))
     })
-    return params
+
+    let stringifiedParams = JSON.stringify(params)
+    for (const [identifier, value] of this.#environmentManagerView.list) {
+      stringifiedParams = stringifiedParams.replaceAll(
+        `{{${identifier}}}`,
+        value,
+      )
+    }
+    return JSON.parse(stringifiedParams)
   }
 
   private computeArgument(
@@ -236,7 +252,7 @@ export class FunctionFragmentView {
     }
 
     if (inputType.arrayChildren) {
-      const generatedCount = Number(this.getDataValue(path))
+      const generatedCount = Number(this.getDataValue(paramPath))
       const params: ContractParam = []
       for (let i = 0; i < generatedCount; i++) {
         params.push(
@@ -297,6 +313,7 @@ export class FunctionFragmentView {
           values,
           indent + 1,
           generatePathForComponent(paramPath, i),
+          true,
         )
       }
       return
@@ -354,17 +371,23 @@ export class FunctionFragmentView {
   /**
    * Deletes the values for the given path and all the sub-paths of the path.
    * @param path
+   * @param valueEditingType
    * @private
    */
-  private async deleteValuesForPath(path: string) {
+  private async deleteValuesForPath(
+    path: string,
+    valueEditingType: ValueEditingType,
+  ) {
+    const deleteFunction = this[deleteFunctionName[valueEditingType]].bind(this)
+
     // delete the value for the specific path
-    await this.deleteDataValue(path)
+    await deleteFunction(path)
 
     // delete values for all the sub-paths of the path
     const keys = this.#paths.values()
     for (const key of keys) {
       if (key.startsWith(path + '.')) {
-        await this.deleteDataValue(path)
+        await deleteFunction(key)
       }
     }
   }
@@ -376,17 +399,21 @@ export class FunctionFragmentView {
    * @param path
    * @param newPath
    * @param deleteReplaced
+   * @param valueEditingType
    * @private
    */
   private async replaceValuesForPath(
     path: string,
     newPath: string,
     deleteReplaced: boolean,
+    valueEditingType: ValueEditingType,
   ) {
+    const deleteFunction = this[deleteFunctionName[valueEditingType]].bind(this)
+    const setFunction = this[setFunctionName[valueEditingType]].bind(this)
     // replace the value for the specific path
-    await this.setDataValue(this.getDataValue(path), newPath)
+    await setFunction(this.getDataValue(path), newPath)
     if (deleteReplaced) {
-      await this.deleteDataValue(path)
+      await deleteFunction(path)
     }
 
     // replace values for all the sub-paths of the path
@@ -394,9 +421,9 @@ export class FunctionFragmentView {
     for (const key of keys) {
       if (key.startsWith(path) + '.') {
         const newKey = key.replace(path, newPath)
-        await this.setDataValue(this.getDataValue(key), newKey)
+        await setFunction(this.getDataValue(key), newKey)
         if (deleteReplaced) {
-          await this.deleteDataValue(key)
+          await deleteFunction(key)
         }
       }
     }
@@ -508,3 +535,14 @@ function generatePath(paramType: ParamType, path = '', pathOverride = false) {
 function generatePathForComponent(path: string, index: number) {
   return `${path}.${index}`
 }
+
+type ValueEditingType = 'doc' | 'data'
+const deleteFunctionName = {
+  doc: 'deleteDocText',
+  data: 'deleteDataValue',
+} as const
+
+const setFunctionName = {
+  doc: 'setDocText',
+  data: 'setDataValue',
+} as const

@@ -105,7 +105,10 @@ export class CollectionDataManager {
 
   get workflowManagerView(): WorkflowManagerView {
     if (!this.#workflowManagerView) {
-      this.#workflowManagerView = new WorkflowManagerView(this)
+      this.#workflowManagerView = new WorkflowManagerView(
+        this.valueManagerView,
+        this,
+      )
     }
     return this.#workflowManagerView
   }
@@ -127,7 +130,7 @@ export class CollectionDataManager {
   getContractDetailsView(contractId: string): ContractDetailsView {
     let view = this.#contractDetailsViews.get(contractId)
     if (!view) {
-      view = new ContractDetailsView(this, contractId)
+      view = new ContractDetailsView(this, this.valueManagerView, contractId)
       this.#contractDetailsViews.set(contractId, view)
     }
     return view
@@ -167,6 +170,7 @@ export class CollectionDataManager {
     if (fragment?.fragment instanceof FunctionFragment) {
       return FunctionFragmentView.create(
         this.valueManagerView,
+        this.environmentManagerView,
         fragmentKey,
         fragment.fragment,
       )

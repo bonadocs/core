@@ -2,6 +2,7 @@
   CollectionDataManager,
   DeleteCollectionWorkflowCodeEvent,
   SetCollectionWorkflowCodeEvent,
+  ValueManagerView,
 } from '../'
 import { saveToIPFS } from '../../../ipfs'
 import { CodeSnippetLanguage, WorkflowDefinition } from '../../spec'
@@ -21,6 +22,7 @@ import { CallbackListener, createEventListener } from './util'
 
 export class WorkflowManagerView {
   readonly #dataManager: CollectionDataManager
+  readonly #valueManagerView: ValueManagerView
   readonly #workflowDefinitions: Map<string, WorkflowDefinition>
   readonly #workflowVariables: Map<string, Map<string, string>>
 
@@ -35,7 +37,11 @@ export class WorkflowManagerView {
   #onWorkflowCodeSet: CallbackListener
   #onWorkflowCodeDeleted: CallbackListener
 
-  constructor(dataManager: CollectionDataManager) {
+  constructor(
+    valueManagerView: ValueManagerView,
+    dataManager: CollectionDataManager,
+  ) {
+    this.#valueManagerView = valueManagerView
     this.#dataManager = dataManager
     this.#workflowDefinitions = new Map()
     this.#workflowVariables = new Map()
@@ -172,6 +178,16 @@ export class WorkflowManagerView {
     }
 
     await this.#dataManager.emit(event)
+  }
+
+  async setDocText(workflowId: string, text: string) {
+    const fullKey = `docs::workflows::${workflowId}::text`
+    await this.#valueManagerView.setString(fullKey, text)
+  }
+
+  async getDocText(workflowId: string) {
+    const fullKey = `docs::workflows::${workflowId}::text`
+    return this.#valueManagerView.getString(fullKey)
   }
 
   async addWorkflowFunction(workflowId: string, functionKey: string) {

@@ -1,6 +1,7 @@
 ﻿import { js } from './languages'
 import { CodeRunner } from './types'
 
+export type * from './types'
 export function getCodeRunner(language: string): Promise<CodeRunner> {
   switch (language) {
     case 'js':

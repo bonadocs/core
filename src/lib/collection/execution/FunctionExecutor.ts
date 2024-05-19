@@ -34,7 +34,7 @@ export class FunctionExecutor {
   private readonly contractAddresses: Map<number, Map<string, string>>
   private signer: Signer | null = null
   private provider: Provider | null = null
-  private activeChainId: number
+  #activeChainId: number
 
   private constructor(
     supportedChains: Set<number>,
@@ -47,7 +47,7 @@ export class FunctionExecutor {
     this.functions = config
     this._transactionSimulator = new TransactionSimulator()
     this.supportedChains = supportedChains
-    this.activeChainId = this.supportedChains.values().next().value
+    this.#activeChainId = this.supportedChains.values().next().value
     this.contractAddresses = new Map()
   }
 
@@ -108,7 +108,11 @@ export class FunctionExecutor {
       throw new Error('Unsupported chain')
     }
 
-    this.activeChainId = chainId
+    this.#activeChainId = chainId
+  }
+
+  get activeChainId() {
+    return this.#activeChainId
   }
 
   getExecutionContext(index: number): ExecutionContext {
@@ -257,7 +261,10 @@ export class FunctionExecutor {
       return this.provider
     }
 
-    this.provider = await getProvider(this.signer?.provider, this.activeChainId)
+    this.provider = await getProvider(
+      this.signer?.provider,
+      this.#activeChainId,
+    )
     return this.provider
   }
 
@@ -270,7 +277,7 @@ export class FunctionExecutor {
       (await signer?.getAddress()) ||
       ZeroAddress
     const to = this.contractAddresses
-      .get(this.activeChainId)
+      .get(this.#activeChainId)
       ?.get(func.contractId)
     const data = func.fragmentView.encodeFunctionData()
 
@@ -317,7 +324,7 @@ export class FunctionExecutor {
     let receipts: ExecutionResultData[] | undefined = []
     if (simulationBundleIndexes.length) {
       receipts = await this._transactionSimulator.simulateBundle(
-        this.activeChainId,
+        this.#activeChainId,
         simulationBundle,
       )
       if (!receipts?.length) {

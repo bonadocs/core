@@ -108,7 +108,7 @@ export const supportedChains = new Map<number, ChainConfig>([
       name: 'Polygon',
       chainId: 137,
       networkId: 137,
-      jsonRpcUrl: 'https://polygon.llamarpc.com',
+      jsonRpcUrl: 'https://rpc.ankr.com/polygon',
       specApiConfigs: [
         {
           specApiType: 'etherscan',

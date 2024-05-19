@@ -1,19 +1,54 @@
-﻿import { CodeRunner } from '../../types'
+﻿import { getCodeCacheStore } from '../../../storage'
+import { CodeRunner, CodeRunnerContext } from '../../types'
 
+const libraryFormatRegex =
+  /^(@?[A-Za-z0-9_\-.~]+)(\/[A-Za-z0-9_\-.~]+)?(@[A-Za-z0-9_\-.~]+)?$/
 export abstract class JavaScriptCodeRunner extends CodeRunner {
   #baseScript: string | undefined
-  #libraries = [
-    'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.1/ethers.umd.min.js',
-  ]
+  #libraryCode: Array<{ name: string; code: string }> = []
 
   protected constructor() {
     super('js')
   }
 
-  async run(code: string): Promise<unknown> {
-    const script = this.buildScript(code, await this.loadBaseScript())
-    return this.runScript(script)
+  async run(code: string, context: CodeRunnerContext): Promise<unknown> {
+    const script = this.buildScript(code, await this.loadBaseScript(), context)
+    return this.runScript(script, context)
+  }
+
+  async loadLibrary(name: string): Promise<void> {
+    const url = name
+    if (url.startsWith('http')) {
+      this.#libraryCode.push({
+        name,
+        code: await this.loadScriptFromUrl(url),
+      })
+      return
+    }
+
+    const match = name.match(libraryFormatRegex)
+    if (!match) {
+      throw new Error(`Invalid library name: ${name}`)
+    }
+
+    let scope: string | undefined,
+      packageName: string,
+      version: string | undefined
+    if (match[1].startsWith('@')) {
+      scope = match[1].slice(1)
+      packageName = match[2]?.slice(1) || ''
+      version = match[3]?.slice(1)
+    } else {
+      scope = undefined
+      packageName = match[1]
+      version = match[2]?.slice(1)
+    }
+
+    const packageUrl = await this.getPackageUrl(scope, packageName, version)
+    this.#libraryCode.push({
+      name,
+      code: await this.loadScriptFromUrl(packageUrl),
+    })
   }
 
   private async loadBaseScript(): Promise<string> {
@@ -22,14 +57,82 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
     }
 
     let script = ''
-    for (const url of this.#libraries) {
-      script += (await this.loadScriptFromUrl(url)) + ';\n'
+    for (const { name, code } of this.#libraryCode) {
+      script += `
+// Library: ${name}  - Bonadocs JS CodeRunner
+// Beginning of library: ${name}
+${code}
+// End of library: ${name}
+`
     }
     this.#baseScript = script
     return script
   }
 
-  protected abstract loadScriptFromUrl(url: string): Promise<string>
-  protected abstract buildScript(code: string, baseScript: string): string
-  protected abstract runScript(script: string): Promise<unknown>
+  private async getPackageUrl(
+    scope: string | undefined,
+    packageName: string,
+    version: string | undefined,
+  ): Promise<string> {
+    const metadata = await this.loadPackageMetadata(scope, packageName)
+    version ??= metadata.tags.latest
+
+    if (!version) {
+      throw new Error(
+        `No version found for package: ${packageName} with scope ${scope}`,
+      )
+    }
+
+    const versionMetadata = metadata.versions.find(
+      (v: { version: string }) => v.version === version,
+    )
+    if (!versionMetadata) {
+      throw new Error(
+        `Could not load version metadata for package: ${packageName} with scope ${scope}`,
+      )
+    }
+
+    const entrypointsResponse = await fetch(versionMetadata.links.entrypoints)
+    const entrypointsData = await entrypointsResponse.json()
+
+    const packageJsDelivrRoot = `https://cdn.jsdelivr.net/npm/${
+      scope ? `@${scope}/` : ''
+    }${packageName}@${version}`
+    return packageJsDelivrRoot + entrypointsData.entrypoints.js.file
+  }
+
+  private async loadPackageMetadata(
+    scope: string | undefined,
+    packageName: string,
+  ): Promise<Record<string, any>> {
+    const scopeUrl = scope ? `@${scope}/` : ''
+    const jsdelivrUrl = `https://data.jsdelivr.com/v1/package/npm/${scopeUrl}${packageName}`
+    const response = await fetch(jsdelivrUrl)
+    return response.json()
+  }
+
+  protected async loadScriptFromUrl(url: string): Promise<string> {
+    const key = `script:${url}`
+    const storage = await getCodeCacheStore()
+    const cached = await storage.get(key)
+    if (cached) {
+      return cached
+    }
+    const response = await fetch(url)
+    const text = await response.text()
+    await storage.set(key, text)
+    return text
+  }
+
+  protected abstract buildScript(
+    code: string,
+    baseScript: string,
+    context: CodeRunnerContext,
+  ): string
+  protected abstract runScript(
+    script: string,
+    context: CodeRunnerContext,
+  ): Promise<unknown>
 }
+
+// proxy wraps the object and sends it to the main execution context

@@ -6,9 +6,10 @@
  */
 export function generateContractId(
   collectionId: string,
+  name: string,
   interfaceHash: string,
 ): string {
-  return generateId([collectionId, interfaceHash])
+  return generateId([collectionId, name, interfaceHash])
 }
 
 export function generateRandomId(): string {

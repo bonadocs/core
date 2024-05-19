@@ -113,6 +113,7 @@ export class ContractManagerView {
     if (!contract.id) {
       contract.id = generateContractId(
         this.#dataManager.id,
+        contract.name,
         contract.interfaceHash,
       )
     }

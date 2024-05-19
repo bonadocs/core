@@ -1,7 +1,7 @@
 ﻿import { JsonRpcProvider, ParamType, Provider, Result, toBeHex } from 'ethers'
 
 import { supportedChains } from '../../chains'
-import type { CodeSnippet } from '../spec'
+import { CodeSnippet, CodeSnippetLanguage } from '../spec'
 
 export type DisplayResult = Record<string, unknown>
 
@@ -68,4 +68,15 @@ export function getExecutionType(
   }
 
   return typeof execution[0] === 'string' ? 'functions' : 'snippet'
+}
+
+const defaultLanguageLibrariesMap: Record<CodeSnippetLanguage, string[]> = {
+  js: [
+    'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.1/ethers.umd.min.js',
+  ],
+}
+
+export function getDefaultLibraries(language: CodeSnippetLanguage) {
+  return defaultLanguageLibrariesMap[language]
 }

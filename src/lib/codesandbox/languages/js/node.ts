@@ -1,31 +1,12 @@
-﻿import os from 'os'
-import path from 'path'
-import * as vm from 'vm'
+﻿import * as vm from 'vm'
 
-import { FileStorage } from '../../../storage/FileStorage'
+import { CodeRunnerContext } from '../../types'
 
 import { JavaScriptCodeRunner } from './base'
 
-const codeRoot = path.join(os.homedir(), '.bonadocs', 'cache')
-
 export class NodeJSRunner extends JavaScriptCodeRunner {
-  #storage: FileStorage | undefined
-
   constructor() {
     super()
-  }
-
-  protected async loadScriptFromUrl(url: string): Promise<string> {
-    const key = `script:${url}`
-    const storage = await this.getStorage()
-    const cached = await storage.get(key)
-    if (cached) {
-      return cached
-    }
-    const response = await fetch(url)
-    const text = await response.text()
-    await storage.set(key, text)
-    return text
   }
 
   protected buildScript(code: string, baseScript: string): string {
@@ -36,19 +17,24 @@ async function run() {
 }
 
 run().then((result) => {
-  onSuccess(result)
+  onBonadocsExecutionSuccess(result)
 }).catch((error) => {
-  onError(error)
+  onBonadocsExecutionError(error)
 })`
   }
 
-  protected runScript(script: string): Promise<unknown> {
+  protected runScript(
+    script: string,
+    codeRunnerContext: CodeRunnerContext,
+  ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const context = {
-        onSuccess: (result: Record<string, unknown> | undefined) => {
+        onBonadocsExecutionSuccess: (
+          result: Record<string, unknown> | undefined,
+        ) => {
           resolve(result)
         },
-        onError: (error: unknown) => {
+        onBonadocsExecutionError: (error: unknown) => {
           reject(error)
         },
         // to enable logging from the code
@@ -57,16 +43,18 @@ run().then((result) => {
         global: {
           crypto,
         },
+        bonadocs: {
+          ...Object.values(codeRunnerContext).reduce(
+            (acc, { name, value }) => {
+              acc[name] = value
+              return acc
+            },
+            {} as Record<string, unknown>,
+          ),
+        },
       }
       vm.createContext(context)
       vm.runInContext(script, context)
     })
-  }
-
-  private async getStorage(): Promise<FileStorage> {
-    if (!this.#storage) {
-      this.#storage = await FileStorage.create(codeRoot, 'code')
-    }
-    return this.#storage
   }
 }

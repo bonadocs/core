@@ -1,21 +1,85 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import axios, { AxiosInstance } from 'axios'
 import { id } from 'ethers'
 
 import { config } from '../config'
 import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
-  'https://ipfs.nftstorage.link',
+  'https://nftstorage.link',
   'https://ipfs.io',
-  'https://gateway.ipfs.io',
   'https://dweb.link',
-  'https://cf-ipfs.com',
   'https://cloudflare-ipfs.com',
-  'https://hardbin.com',
+  'https://cf-ipfs.com',
+  'https://gateway.pinata.cloud',
+  'https://ipfs.eth.aragon.network',
+  'https://4everland.io',
+  'https://w3s.link',
+  'https://trustless-gateway.link',
 ]
 
-let clients: AxiosInstance[]
-let count = 0
+type HttpResponse = {
+  statusCode: number
+  data: unknown
+}
+
+let clients: HttpClient[]
+
+class HttpClient {
+  #waiting: boolean = false
+  #httpClient: AxiosInstance
+  readonly #totalWaitTime = 5000
+
+  constructor(private baseUrl: string) {
+    this.#httpClient = axios.create({
+      baseURL: baseUrl,
+    })
+  }
+
+  /**
+   * Get data from IPFS. If we run into a 429 error, we disable the client for
+   * a short period of time.
+   * @param path
+   */
+  async get(path: string): Promise<HttpResponse | undefined> {
+    if (this.#waiting) {
+      return undefined
+    }
+
+    const response = await this.#httpClient.get(`${this.baseUrl}${path}`)
+    if (response.status === 429) {
+      this.#waiting = true
+      await new Promise((resolve) =>
+        setTimeout(() => {
+          this.#waiting = false
+          resolve(undefined)
+        }, this.#totalWaitTime),
+      )
+      return undefined
+    }
+
+    if (response.status !== 200) {
+      throw new Error(`Request failed: ${response.status}`)
+    }
+
+    return {
+      statusCode: response.status,
+      data: response.data,
+    }
+  }
+
+  getWithTimeout(
+    path: string,
+    timeoutMillis: number,
+  ): Promise<HttpResponse | undefined> {
+    return Promise.race([
+      this.get(path),
+      new Promise<HttpResponse>((_, reject) =>
+        setTimeout(reject, timeoutMillis),
+      ),
+    ])
+  }
+}
+
 const nftStorageClient = axios.create({
   baseURL: 'https://api.nft.storage',
   headers: {
@@ -24,32 +88,18 @@ const nftStorageClient = axios.create({
   validateStatus: () => true,
 })
 
-function getClients(): AxiosInstance[] {
+function getClients(): HttpClient[] {
   if (!clients) {
-    clients = ipfsGateways.map((gatewayUrl) =>
-      axios.create({
-        baseURL: gatewayUrl,
-      }),
-    )
+    clients = ipfsGateways.map((gatewayUrl) => new HttpClient(gatewayUrl))
   }
 
   return clients
 }
 
-async function loadFromSingleClient(
-  client: AxiosInstance,
-  cid: string,
-): Promise<AxiosResponse | undefined> {
-  return await Promise.race([
-    client.get(`/ipfs/${cid}`),
-    new Promise<undefined>((_, reject) => setTimeout(reject, 1000)),
-  ])
-}
-
 /**
- * Load data from IPFS. Will go over a list of IPFS gateways until it finds the data.
- * If data is found on a gateway, the gateway is re-used for subsequent calls until
- * it fails.
+ * Load data from IPFS. Will go over a list of IPFS gateways until it finds the
+ * data. If data is found on a gateway, the gateway is re-used for subsequent
+ * calls until it fails.
  * @param cid
  */
 export async function loadFromIPFS(cid: string): Promise<unknown> {
@@ -59,21 +109,18 @@ export async function loadFromIPFS(cid: string): Promise<unknown> {
   }
 
   const clients = getClients()
-  for (let i = 0; i < clients.length; i++) {
-    const j = count % clients.length
-    try {
-      const result = await loadFromSingleClient(clients[j], cid)
-      if (result?.data) {
-        await cacheIPFSData(cid, result.data)
-        return result.data
-      }
-    } catch {
-      // ignore
-    }
-
-    count++
+  try {
+    return await raceResolved(
+      clients.map((client) =>
+        client
+          .getWithTimeout(`/ipfs/${cid}`, 3000)
+          .then((result) => result?.data),
+      ),
+      (result) => !!result,
+    )
+  } catch (e) {
+    return undefined
   }
-  return undefined
 }
 
 export async function loadFromIPFSWithTimeout(
@@ -82,7 +129,7 @@ export async function loadFromIPFSWithTimeout(
 ): Promise<unknown> {
   return await Promise.race([
     loadFromIPFS(cid),
-    new Promise<undefined>((resolve) => setTimeout(resolve, timeoutMillis)),
+    new Promise<void>((_, reject) => setTimeout(reject, timeoutMillis)),
   ])
 }
 
@@ -123,4 +170,33 @@ async function loadIPFSDataFromCache(cid: string): Promise<unknown> {
 async function cacheIPFSData(cid: string, data: unknown): Promise<void> {
   const metadataStore = await getMetadataStore()
   await metadataStore.set(`ipfs-data:${cid}`, JSON.stringify(data))
+}
+
+function raceResolved<T>(
+  promises: Array<Promise<T>>,
+  checkResolved: (value: T) => boolean,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const rejections: unknown[] = []
+
+    promises.forEach((promise) => {
+      Promise.resolve(promise)
+        .then((value) => {
+          if (checkResolved(value)) {
+            resolve(value)
+          } else {
+            rejections.push(value)
+            if (rejections.length === promises.length) {
+              reject(rejections)
+            }
+          }
+        })
+        .catch((e) => {
+          rejections.push(e)
+          if (rejections.length === promises.length) {
+            reject(rejections)
+          }
+        })
+    })
+  })
 }

@@ -1,10 +1,4 @@
-﻿import {
-  Interface,
-  isCallException,
-  Provider,
-  Signer,
-  ZeroAddress,
-} from 'ethers'
+﻿import { Interface, isCallException, Provider, ZeroAddress } from 'ethers'
 
 import { CollectionDataManager, FunctionFragmentView } from '../data-manager'
 import { TransactionSimulator } from '../simulation'
@@ -12,6 +6,7 @@ import type { ExecutableEVMCall, ExecutionContext } from '../spec'
 import { ExecutionResultData } from '../types'
 import { intersect } from '../util'
 
+import { BaseExecutor } from './BaseExecutor'
 import { ExecutionResult } from './ExecutionResult'
 import {
   convertResultToDisplayResult,
@@ -27,27 +22,23 @@ interface ExecutableFunctionConfiguration {
   context: ExecutionContext
 }
 
-export class FunctionExecutor {
+export class FunctionExecutor extends BaseExecutor {
   readonly functions: readonly ExecutableFunctionConfiguration[]
-  readonly supportedChains: Set<number>
   private readonly _transactionSimulator: TransactionSimulator
   private readonly contractAddresses: Map<number, Map<string, string>>
-  private signer: Signer | null = null
   private provider: Provider | null = null
-  #activeChainId: number
 
   private constructor(
     supportedChains: Set<number>,
     config: ExecutableFunctionConfiguration[],
   ) {
+    super(supportedChains)
     if (!config.length) {
       throw new Error('No functions to execute')
     }
 
     this.functions = config
     this._transactionSimulator = new TransactionSimulator()
-    this.supportedChains = supportedChains
-    this.#activeChainId = this.supportedChains.values().next().value
     this.contractAddresses = new Map()
   }
 
@@ -93,26 +84,6 @@ export class FunctionExecutor {
       }
     }
     return executor
-  }
-
-  /**
-   * Sets the signer to use for signed transactions.
-   * @param signer
-   */
-  setSigner(signer: Signer) {
-    this.signer = signer
-  }
-
-  setActiveChainId(chainId: number) {
-    if (!this.supportedChains.has(chainId)) {
-      throw new Error('Unsupported chain')
-    }
-
-    this.#activeChainId = chainId
-  }
-
-  get activeChainId() {
-    return this.#activeChainId
   }
 
   getExecutionContext(index: number): ExecutionContext {
@@ -261,10 +232,7 @@ export class FunctionExecutor {
       return this.provider
     }
 
-    this.provider = await getProvider(
-      this.signer?.provider,
-      this.#activeChainId,
-    )
+    this.provider = await getProvider(this.signer?.provider, this.activeChainId)
     return this.provider
   }
 
@@ -277,7 +245,7 @@ export class FunctionExecutor {
       (await signer?.getAddress()) ||
       ZeroAddress
     const to = this.contractAddresses
-      .get(this.#activeChainId)
+      .get(this.activeChainId)
       ?.get(func.contractId)
     const data = func.fragmentView.encodeFunctionData()
 
@@ -324,7 +292,7 @@ export class FunctionExecutor {
     let receipts: ExecutionResultData[] | undefined = []
     if (simulationBundleIndexes.length) {
       receipts = await this._transactionSimulator.simulateBundle(
-        this.#activeChainId,
+        this.activeChainId,
         simulationBundle,
       )
       if (!receipts?.length) {

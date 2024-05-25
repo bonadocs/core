@@ -1,4 +1,5 @@
-﻿import { CollectionDataManager } from '../CollectionDataManager'
+﻿import { CodeSnippetLanguage } from '../../spec'
+import { CollectionDataManager } from '../CollectionDataManager'
 import {
   DeleteCollectionStringEvent,
   UpdateCollectionStringEvent,
@@ -13,6 +14,33 @@ export class ValueManagerView {
   constructor(dataManager: CollectionDataManager) {
     this.#dataManager = dataManager
     this.setupEventListeners()
+  }
+
+  async addLibrary(language: CodeSnippetLanguage, library: string) {
+    const languageLibraries = this.getLibraries(language)
+    languageLibraries.push(library)
+
+    await this.setString(
+      `libraries.${language}`,
+      JSON.stringify(Array.from(new Set(languageLibraries))),
+    )
+  }
+
+  async removeLibrary(language: CodeSnippetLanguage, library: string) {
+    const languageLibraries = this.getLibraries(language)
+    const index = languageLibraries.indexOf(library)
+    if (index !== -1) {
+      languageLibraries.splice(index, 1)
+    }
+
+    await this.setString(
+      `libraries.${language}`,
+      JSON.stringify(languageLibraries),
+    )
+  }
+
+  getLibraries(language: CodeSnippetLanguage): string[] {
+    return JSON.parse(this.getString(`libraries.${language}`) || '[]')
   }
 
   getString(key: string) {

@@ -1070,11 +1070,20 @@ class SetWorkflowCodeEventListener
       workflow.execution = []
     }
 
-    if (
-      workflow.execution.length === 0 ||
-      typeof workflow.execution[0] !== 'string'
-    ) {
-      const execution = workflow.execution as CodeSnippet[]
+    if (workflow.execution.some((e) => typeof e === 'string')) {
+      throw new Error(
+        'Cannot set code for non-snippet workflow. Remove all functions first.',
+      )
+    }
+
+    const execution = workflow.execution as CodeSnippet[]
+    const applicableExecution = execution.find(
+      (e) => e.language === event.data.language,
+    )
+
+    if (applicableExecution) {
+      applicableExecution.code = event.data.code
+    } else {
       execution.push({
         code: event.data.code,
         language: event.data.language,

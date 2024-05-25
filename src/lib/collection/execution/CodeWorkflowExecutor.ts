@@ -1,7 +1,9 @@
 ﻿import { CodeRunner, getCodeRunner } from '../../codesandbox'
-import { CollectionDataManager } from '../data-manager'
+import { CollectionDataManager, ContractManagerView } from '../data-manager'
 import { CodeSnippet, CodeSnippetLanguage } from '../spec'
+import { intersect } from '../util'
 
+import { BaseExecutor } from './BaseExecutor'
 import { getDefaultLibraries, getExecutionType } from './util'
 
 interface CodeWorkflowConfiguration {
@@ -9,20 +11,25 @@ interface CodeWorkflowConfiguration {
   variables: Record<string, string>
 }
 
-export class CodeWorkflowExecutor {
+export class CodeWorkflowExecutor extends BaseExecutor {
   #currentLanguage: CodeSnippetLanguage
   readonly #runners: Record<CodeSnippetLanguage, CodeRunner>
   readonly #snippets: Record<CodeSnippetLanguage, string>
+  readonly #contractManagerView: ContractManagerView
 
   private constructor(
+    supportedChains: Set<number>,
     config: CodeWorkflowConfiguration,
     runners: Record<CodeSnippetLanguage, CodeRunner>,
+    contractManagerView: ContractManagerView,
   ) {
+    super(supportedChains)
     this.#runners = runners
     this.#snippets = Object.fromEntries(
       config.snippets.map((s) => [s.language, s.code]),
     ) as Record<CodeSnippetLanguage, string>
     this.#currentLanguage = config.snippets[0].language
+    this.#contractManagerView = contractManagerView
   }
 
   static async create(
@@ -67,7 +74,13 @@ export class CodeWorkflowExecutor {
         ]),
       ),
     )
-    return new CodeWorkflowExecutor(config, runners)
+
+    return new CodeWorkflowExecutor(
+      getActiveNetworks(dataManager),
+      config,
+      runners,
+      dataManager.contractManagerView,
+    )
   }
 
   loadLibrary(language: CodeSnippetLanguage, library: string) {
@@ -76,6 +89,49 @@ export class CodeWorkflowExecutor {
 
   async run(): Promise<unknown> {
     const runner = this.#runners[this.#currentLanguage]
-    return runner.run(this.#snippets[this.#currentLanguage], {})
+    return runner.run(this.#snippets[this.#currentLanguage], {
+      contracts: {
+        name: 'contracts',
+        serializable: true,
+        type: 'object',
+        value: Object.fromEntries(
+          Array.from(this.#contractManagerView.contracts)
+            .filter((c) =>
+              c.instances.some((i) => i.chainId === this.activeChainId),
+            )
+            .map((c) => {
+              const contract = {
+                id: c.id,
+                name: c.name,
+                chainId: this.activeChainId,
+                address: c.instances.find(
+                  (i) => i.chainId === this.activeChainId,
+                )!.address,
+              }
+              return [
+                [c.id, contract],
+                [c.name, contract],
+              ]
+            })
+            .flat(),
+        ),
+      },
+    })
   }
+}
+
+function getActiveNetworks(dataManager: CollectionDataManager) {
+  let activeNetworks: Set<number> | undefined
+  for (const contract of dataManager.contractManagerView.contracts) {
+    const chainIds = contract.instances.map((instance) => instance.chainId)
+    if (!activeNetworks) {
+      activeNetworks = new Set(chainIds)
+    } else {
+      activeNetworks = intersect(activeNetworks, chainIds)
+    }
+    if (activeNetworks.size === 0) {
+      throw new Error('Workflow functions must be on the same networks')
+    }
+  }
+  return activeNetworks!
 }

@@ -5,6 +5,18 @@ import { CodeSnippet, CodeSnippetLanguage } from '../spec'
 
 export type DisplayResult = Record<string, unknown>
 
+export type ExecutionEnvironment = 'node' | 'browser'
+
+export function getExecutionEnvironment(): ExecutionEnvironment {
+  if (typeof window !== 'undefined' && typeof window.Worker !== undefined) {
+    return 'browser'
+  } else if (typeof process === 'object' && process?.versions?.node) {
+    return 'node'
+  } else {
+    throw new Error('Unsupported environment')
+  }
+}
+
 export async function getProvider(
   connectedProvider: Provider | null | undefined,
   chainId: number,
@@ -73,7 +85,7 @@ export function getExecutionType(
 const defaultLanguageLibrariesMap: Record<CodeSnippetLanguage, string[]> = {
   js: [
     'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.1/ethers.umd.min.js',
+    // 'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.1/ethers.umd.min.js',
   ],
 }
 

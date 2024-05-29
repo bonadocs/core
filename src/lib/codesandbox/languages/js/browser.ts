@@ -16,15 +16,17 @@ export class BrowserJSCodeRunner extends JavaScriptCodeRunner {
 
 ${this.loadContextScript(context)}
 
+console = bonadocs['console'];
+
 async function run() {
   ${code}
 }
 
 run().then((result) => {
-  self.postMessage({ result })
+  self.postMessage({ result: {value: result} });
 }).catch((error) => {
-  self.postMessage({ error })
-})`
+  self.postMessage({ error });
+});`
   }
 
   protected runScript(
@@ -39,27 +41,37 @@ run().then((result) => {
       .map(
         (i) =>
           !i.serializable &&
-          'js' in i.registerHandler.js &&
-          ((message: unknown) => i.registerHandler.js({ worker, message })),
+          i.registerHandler.js && {
+            name: i.name,
+            func: (message: unknown) =>
+              i.registerHandler.js({ worker, message }),
+          },
       )
-      .filter(Boolean)
+      .filter(Boolean) as { name: string; func: (message: unknown) => void }[]
 
     return new Promise((resolve, reject) => {
       worker.onmessage = function (e) {
         const { error, result } = e.data
-        worker.terminate()
 
         if (error) {
+          worker.terminate()
           return reject(error)
         }
 
         if (result) {
-          return resolve(result)
+          worker.terminate()
+          return resolve(result.value)
+        }
+
+        const { handler: handlerName, data } = e.data
+
+        if (!handlerName) {
+          return reject(new Error('No handler provided'))
         }
 
         for (const handler of handlers) {
-          if (handler) {
-            handler(e.data)
+          if (handler.name === handlerName) {
+            handler.func(data)
           }
         }
       }

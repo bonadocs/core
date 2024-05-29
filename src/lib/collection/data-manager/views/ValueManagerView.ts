@@ -1,4 +1,5 @@
-﻿import { CodeSnippetLanguage } from '../../spec'
+﻿import { getDefaultLibraries } from '../../execution/util'
+import { CodeSnippetLanguage } from '../../spec'
 import { CollectionDataManager } from '../CollectionDataManager'
 import {
   DeleteCollectionStringEvent,
@@ -40,7 +41,11 @@ export class ValueManagerView {
   }
 
   getLibraries(language: CodeSnippetLanguage): string[] {
-    return JSON.parse(this.getString(`libraries.${language}`) || '[]')
+    const libraries = this.getString(`libraries.${language}`)
+    if (!libraries) {
+      return getDefaultLibraries(language)
+    }
+    return JSON.parse(libraries)
   }
 
   getString(key: string) {

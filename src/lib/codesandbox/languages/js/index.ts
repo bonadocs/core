@@ -1,4 +1,6 @@
-﻿import { JavaScriptCodeRunner } from './base'
+﻿import { getExecutionEnvironment } from '../../../collection/execution/util'
+
+import { JavaScriptCodeRunner } from './base'
 
 let codeRunner: JavaScriptCodeRunner | undefined
 
@@ -7,10 +9,11 @@ export async function getCodeRunner(): Promise<JavaScriptCodeRunner> {
     return codeRunner
   }
 
-  if (typeof window !== 'undefined' && typeof window.Worker !== undefined) {
+  const executionEnvironment = getExecutionEnvironment()
+  if (executionEnvironment === 'browser') {
     const { BrowserJSCodeRunner } = await import('./browser')
     codeRunner = new BrowserJSCodeRunner()
-  } else if (typeof process === 'object' && process?.versions?.node) {
+  } else if (executionEnvironment === 'node') {
     const { NodeJSRunner } = await import('./node')
     codeRunner = new NodeJSRunner()
   } else {

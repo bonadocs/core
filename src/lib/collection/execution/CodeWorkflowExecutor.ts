@@ -1,10 +1,13 @@
-﻿import { CodeRunner, getCodeRunner } from '../../codesandbox'
+﻿import {
+  CodeRunner,
+  getCodeRunner,
+  LanguageSpecificHandlerArgs,
+} from '../../codesandbox'
 import { CollectionDataManager, ContractManagerView } from '../data-manager'
 import { CodeSnippet, CodeSnippetLanguage } from '../spec'
-import { intersect } from '../util'
 
 import { BaseExecutor } from './BaseExecutor'
-import { getDefaultLibraries, getExecutionType } from './util'
+import { getExecutionType } from './util'
 
 interface CodeWorkflowConfiguration {
   snippets: CodeSnippet[]
@@ -35,9 +38,6 @@ export class CodeWorkflowExecutor extends BaseExecutor {
   static async create(
     dataManager: CollectionDataManager,
     codeWorkflowId: string,
-    libraries: Record<CodeSnippetLanguage, string[]> = {
-      js: getDefaultLibraries('js'),
-    },
   ): Promise<CodeWorkflowExecutor> {
     const workflow = dataManager.workflowManagerView.getWorkflow(codeWorkflowId)
     if (!workflow) {
@@ -60,6 +60,11 @@ export class CodeWorkflowExecutor extends BaseExecutor {
       ]),
     }
 
+    const languages = snippets.map((s) => s.language)
+    const libraries = Object.fromEntries(
+      languages.map((l) => [l, dataManager.valueManagerView.getLibraries(l)]),
+    )
+
     const runners = Object.fromEntries(
       await Promise.all(
         snippets.map(async (s) => [
@@ -67,9 +72,15 @@ export class CodeWorkflowExecutor extends BaseExecutor {
           await getCodeRunner(s.language).then((r) => {
             let promise = Promise.resolve()
             for (const library of libraries[s.language]) {
+              console.log('Loading library:', library)
               promise = promise.then(() => r.loadLibrary(library))
             }
-            return promise
+
+            console.log('Loading zimulatoor library')
+            promise = promise.then(() =>
+              r.loadLibrary('@bonadocs/zimulatoor@1.0.0-dev.13'),
+            )
+            return promise.then(() => r)
           }),
         ]),
       ),
@@ -83,40 +94,104 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     )
   }
 
-  loadLibrary(language: CodeSnippetLanguage, library: string) {
-    return this.#runners[language].loadLibrary(library)
-  }
-
-  async run(): Promise<unknown> {
+  async run() {
     const runner = this.#runners[this.#currentLanguage]
-    return runner.run(this.#snippets[this.#currentLanguage], {
-      contracts: {
-        name: 'contracts',
-        serializable: true,
-        type: 'object',
-        value: Object.fromEntries(
-          Array.from(this.#contractManagerView.contracts)
-            .filter((c) =>
-              c.instances.some((i) => i.chainId === this.activeChainId),
-            )
-            .map((c) => {
-              const contract = {
-                id: c.id,
-                name: c.name,
-                chainId: this.activeChainId,
-                address: c.instances.find(
-                  (i) => i.chainId === this.activeChainId,
-                )!.address,
-              }
-              return [
-                [c.id, contract],
-                [c.name, contract],
-              ]
-            })
-            .flat(),
-        ),
+    const consoleLogs: unknown[] = []
+    const executionResult = await runner.run(
+      this.#snippets[this.#currentLanguage],
+      {
+        contracts: {
+          name: 'contracts',
+          serializable: true,
+          type: 'object',
+          value: Object.fromEntries(
+            Array.from(this.#contractManagerView.contracts)
+              .filter((c) =>
+                c.instances.some((i) => i.chainId === this.activeChainId),
+              )
+              .map((c) => {
+                const contract = {
+                  id: c.id,
+                  name: c.name,
+                  chainId: this.activeChainId,
+                  address: c.instances.find(
+                    (i) => i.chainId === this.activeChainId,
+                  )!.address,
+                  abi: this.#contractManagerView.getContractInterface(
+                    c.interfaceHash,
+                  )!.abi,
+                }
+                return [
+                  [c.id, contract],
+                  [c.name, contract],
+                ]
+              })
+              .flat(),
+          ),
+        },
+        commonAbis: {
+          name: 'commonAbis',
+          serializable: true,
+          type: 'object',
+          value: {
+            erc20: [
+              'function name() view returns (string)',
+              'function symbol() view returns (string)',
+
+              'function balanceOf(address) view returns (uint)',
+              'function transfer(address to, uint amount)',
+
+              'event Transfer(address indexed from, address indexed to, uint amount)',
+            ],
+          },
+        },
+        console: {
+          name: 'console',
+          serializable: false,
+          type: 'object',
+          value: null,
+          injectedCode: `
+          {
+            log: (...args) => {
+              self.postMessage({
+                handler: 'console',
+                data: {
+                  type: 'log',
+                  args: JSON.parse(JSON.stringify(Array.from(args), getConsoleLogReplacer(), 2))
+                }
+              })
+            },
+            error: (...args) => {
+              self.postMessage({
+                handler: 'console',
+                data: {
+                  type: 'error',
+                  args: JSON.parse(JSON.stringify(Array.from(args), getConsoleLogReplacer(), 2))
+                }
+              })
+            },
+            warn: (...args) => {
+              self.postMessage({
+                handler: 'console',
+                data: {
+                  type: 'warn',
+                  args: JSON.parse(JSON.stringify(Array.from(args), getConsoleLogReplacer(), 2))
+                }
+              })
+            },
+          }
+`,
+          registerHandler: {
+            js: (args: LanguageSpecificHandlerArgs) => {
+              console.log(args.message)
+              consoleLogs.push(args.message)
+            },
+          },
+        },
       },
-    })
+    )
+
+    return { executionResult, consoleLogs }
   }
 }
 
@@ -127,10 +202,7 @@ function getActiveNetworks(dataManager: CollectionDataManager) {
     if (!activeNetworks) {
       activeNetworks = new Set(chainIds)
     } else {
-      activeNetworks = intersect(activeNetworks, chainIds)
-    }
-    if (activeNetworks.size === 0) {
-      throw new Error('Workflow functions must be on the same networks')
+      chainIds.forEach((chainId) => activeNetworks!.add(chainId))
     }
   }
   return activeNetworks!

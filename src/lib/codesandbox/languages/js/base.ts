@@ -65,6 +65,34 @@ ${code}
 // End of library: ${name}
 `
     }
+
+    script += `
+function getConsoleLogReplacer() {
+  const seen = new WeakSet()
+  return (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return
+      }
+      seen.add(value)
+    }
+
+    if (typeof value === 'bigint') {
+      return '(bigint) ' + value.toString()
+    }
+
+    if (value instanceof Uint8Array) {
+      return (
+        '(Uint8Array) 0x' +
+        Array.from(value)
+          .map((x) => x.toString(16).padStart(2, '0'))
+          .join('')
+      )
+    }
+    return value
+  }
+}
+`
     this.#baseScript = script
     return script
   }
@@ -83,8 +111,10 @@ ${code}
       )
     }
 
-    const versionMetadata = metadata.versions.find(
-      (v: { version: string }) => v.version === version,
+    const versionMetadata = await this.loadVersionMetadata(
+      scope,
+      packageName,
+      version,
     )
     if (!versionMetadata) {
       throw new Error(
@@ -92,12 +122,29 @@ ${code}
       )
     }
 
-    const entrypointsResponse = await fetch(versionMetadata.links.entrypoints)
-    const entrypointsData = await entrypointsResponse.json()
+    const umdFiles = versionMetadata.files.filter(
+      (file: { name: string }) =>
+        file.name.endsWith('.umd.min.js') || file.name.endsWith('.umd.js'),
+    )
+    umdFiles.sort((a: { name: string }, b: { name: string }) => {
+      const aPoints = a.name.endsWith('.min.js') ? 2 : 1
+      const bPoints = b.name.endsWith('.min.js') ? 2 : 1
+
+      return bPoints - aPoints
+    })
 
     const packageJsDelivrRoot = `https://cdn.jsdelivr.net/npm/${
       scope ? `@${scope}/` : ''
     }${packageName}@${version}`
+
+    const umdFile = umdFiles[0]
+    if (umdFile) {
+      return packageJsDelivrRoot + umdFile.name
+    }
+
+    const entrypointsResponse = await fetch(versionMetadata.links.entrypoints)
+    const entrypointsData = await entrypointsResponse.json()
+
     return packageJsDelivrRoot + entrypointsData.entrypoints.js.file
   }
 
@@ -111,6 +158,17 @@ ${code}
     return response.json()
   }
 
+  private async loadVersionMetadata(
+    scope: string | undefined,
+    packageName: string,
+    version: string,
+  ): Promise<Record<string, any>> {
+    const scopeUrl = scope ? `@${scope}/` : ''
+    const jsdelivrUrl = `https://data.jsdelivr.com/v1/package/npm/${scopeUrl}${packageName}@${version}?structure=flat`
+    const response = await fetch(jsdelivrUrl)
+    return response.json()
+  }
+
   protected async loadScriptFromUrl(url: string): Promise<string> {
     const key = `script:${url}`
     const storage = await getCodeCacheStore()
@@ -119,6 +177,9 @@ ${code}
       return cached
     }
     const response = await fetch(url)
+    if (response.status !== 200) {
+      throw new Error(`Failed to load script from URL: ${url}`)
+    }
     const text = await response.text()
     await storage.set(key, text)
     return text

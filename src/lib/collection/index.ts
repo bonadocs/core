@@ -1,6 +1,7 @@
 import { httpGet } from '../api'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout } from '../ipfs'
+import { loadProtocolMetadata } from '../search'
 import { getCollectionStore } from '../storage'
 import { jsonUtils } from '../util'
 
@@ -69,6 +70,19 @@ export class Collection {
       return this.createFromSnapshot(JSON.stringify(data))
     }
     return this.createFromSnapshot(data)
+  }
+
+  static async createFromProtocolRegistry(slug: string) {
+    if (!slug) {
+      throw Error('Invalid protocol slug')
+    }
+
+    const metadata = await loadProtocolMetadata(slug)
+    if (!metadata) {
+      throw Error(`Failed to load protocol metadata for ${slug}`)
+    }
+
+    return this.createFromURI(metadata.collection)
   }
 
   static async createFromURI(uri: string) {

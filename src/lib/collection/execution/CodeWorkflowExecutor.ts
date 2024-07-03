@@ -69,18 +69,12 @@ export class CodeWorkflowExecutor extends BaseExecutor {
       await Promise.all(
         snippets.map(async (s) => [
           s.language,
-          await getCodeRunner(s.language).then((r) => {
-            let promise = Promise.resolve()
+          await getCodeRunner(s.language).then(async (r) => {
             for (const library of libraries[s.language]) {
-              console.log('Loading library:', library)
-              promise = promise.then(() => r.loadLibrary(library))
+              await r.loadLibrary(library)
             }
-
-            console.log('Loading zimulatoor library')
-            promise = promise.then(() =>
-              r.loadLibrary('@bonadocs/zimulatoor@1.0.0-dev.13'),
-            )
-            return promise.then(() => r)
+            await r.loadLibrary('@bonadocs/zimulatoor@1.0.0-dev.22')
+            return r
           }),
         ]),
       ),
@@ -135,13 +129,19 @@ export class CodeWorkflowExecutor extends BaseExecutor {
           type: 'object',
           value: {
             erc20: [
-              'function name() view returns (string)',
-              'function symbol() view returns (string)',
+              'function name() public view returns (string)',
+              'function symbol() public view returns (string)',
+              'function decimals() public view returns (uint8)',
+              'function totalSupply() public view returns (uint256)',
 
-              'function balanceOf(address) view returns (uint)',
-              'function transfer(address to, uint amount)',
+              'function balanceOf(address _owner) public view returns (uint256 balance)',
+              'function transfer(address _to, uint256 _value) public returns (bool success)',
+              'function transferFrom(address _from, address _to, uint256 _value) public returns (bool success)',
+              'function approve(address _spender, uint256 _value) public returns (bool success)',
+              'function allowance(address _owner, address _spender) public view returns (uint256 remaining)',
 
-              'event Transfer(address indexed from, address indexed to, uint amount)',
+              'event Transfer(address indexed _from, address indexed _to, uint256 _value)',
+              'event Approval(address indexed _owner, address indexed _spender, uint256 _value)',
             ],
           },
         },
@@ -153,6 +153,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
           injectedCode: `
           {
             log: (...args) => {
+              workerConsole.log(...args)
               self.postMessage({
                 handler: 'console',
                 data: {
@@ -162,6 +163,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
               })
             },
             error: (...args) => {
+              workerConsole.error(...args)
               self.postMessage({
                 handler: 'console',
                 data: {
@@ -171,6 +173,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
               })
             },
             warn: (...args) => {
+              workerConsole.warn(...args)
               self.postMessage({
                 handler: 'console',
                 data: {

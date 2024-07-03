@@ -230,7 +230,9 @@ async function filterQuickSearchItemsByTags(
  * @param slug The protocol slug.
  * @returns The protocol metadata.
  */
-async function loadProtocolMetadata(slug: string): Promise<DeepSearchItem> {
+export async function loadProtocolMetadata(
+  slug: string,
+): Promise<DeepSearchItem> {
   const metadata = await downloadFileFromSearchDB(`/data/${slug}.json`)
   if (!metadata) {
     throw new Error(`Could not find metadata for ${slug}`)

@@ -2,10 +2,9 @@
 import { CodeRunner, CodeRunnerContext } from '../../types'
 
 const libraryFormatRegex =
-  /^(@?[A-Za-z0-9_\-.~]+)(\/[A-Za-z0-9_\-.~]+)?(@[A-Za-z0-9_\-.~]+)?$/
+  /^(?:@([A-Za-z0-9_\-.~]+)\/)?([A-Za-z0-9_\-.~]+)(?:@([A-Za-z0-9_\-.~]+))?$/
 export abstract class JavaScriptCodeRunner extends CodeRunner {
-  #baseScript: string | undefined
-  #libraryCode: Array<{ name: string; code: string }> = []
+  #libraryCode: Record<string, string> = {}
 
   protected constructor() {
     super('js')
@@ -17,12 +16,11 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
   }
 
   async loadLibrary(name: string): Promise<void> {
+    console.log('Loading JS library:', name)
     const url = name
     if (url.startsWith('http')) {
-      this.#libraryCode.push({
-        name,
-        code: await this.loadScriptFromUrl(url),
-      })
+      this.#libraryCode[name] = await this.loadScriptFromUrl(url)
+      console.log('Loaded JS library:', name)
       return
     }
 
@@ -31,33 +29,20 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
       throw new Error(`Invalid library name: ${name}`)
     }
 
-    let scope: string | undefined,
-      packageName: string,
-      version: string | undefined
-    if (match[1].startsWith('@')) {
-      scope = match[1].slice(1)
-      packageName = match[2]?.slice(1) || ''
-      version = match[3]?.slice(1)
-    } else {
-      scope = undefined
-      packageName = match[1]
-      version = match[2]?.slice(1)
+    const [, scope, packageName, version] = match
+    if (!packageName) {
+      throw new Error(
+        `Invalid library name: ${name}. Failed to resolve package name`,
+      )
     }
-
     const packageUrl = await this.getPackageUrl(scope, packageName, version)
-    this.#libraryCode.push({
-      name,
-      code: await this.loadScriptFromUrl(packageUrl),
-    })
+    ;(this.#libraryCode[name] = await this.loadScriptFromUrl(packageUrl)),
+      console.log('Loaded JS library:', name)
   }
 
   private async loadBaseScript(): Promise<string> {
-    if (this.#baseScript) {
-      return this.#baseScript
-    }
-
     let script = ''
-    for (const { name, code } of this.#libraryCode) {
+    for (const [name, code] of Object.entries(this.#libraryCode)) {
       script += `
 // Library: ${name}  - Bonadocs JS CodeRunner
 // Beginning of library: ${name}
@@ -93,7 +78,6 @@ function getConsoleLogReplacer() {
   }
 }
 `
-    this.#baseScript = script
     return script
   }
 
@@ -170,10 +154,12 @@ function getConsoleLogReplacer() {
   }
 
   protected async loadScriptFromUrl(url: string): Promise<string> {
+    console.log('Loading JS script from URL:', url)
     const key = `script:${url}`
     const storage = await getCodeCacheStore()
     const cached = await storage.get(key)
     if (cached) {
+      console.log('Found cached script:', url)
       return cached
     }
     const response = await fetch(url)
@@ -181,8 +167,13 @@ function getConsoleLogReplacer() {
       throw new Error(`Failed to load script from URL: ${url}`)
     }
     const text = await response.text()
-    await storage.set(key, text)
-    return text
+    const code = text?.trim()
+    if (!code) {
+      throw new Error(`Empty script loaded from URL: ${url}`)
+    }
+    await storage.set(key, code)
+    console.log('Downloaded script:', url)
+    return code
   }
 
   protected abstract buildScript(

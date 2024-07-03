@@ -16,6 +16,8 @@ export class BrowserJSCodeRunner extends JavaScriptCodeRunner {
 
 ${this.loadContextScript(context)}
 
+self.process = {};
+workerConsole = console;
 console = bonadocs['console'];
 
 async function run() {

@@ -58,9 +58,21 @@ export function convertResultToDisplayResult(
   const displayResult: DisplayResult = {}
   for (let i = 0; i < result.length; i++) {
     displayResult[paramTypes[i].name || `value${i}`] =
-      typeof result[i] === 'bigint' ? toBeHex(result[i]) : result[i]
+      convertParamToDisplayResult(paramTypes[i], result[i])
   }
   return displayResult
+}
+
+function convertParamToDisplayResult(paramType: ParamType, value: any): any {
+  if (paramType.components) {
+    return convertResultToDisplayResult(paramType.components, value)
+  } else if (paramType.arrayChildren) {
+    return value.map((v: any) =>
+      convertParamToDisplayResult(paramType.arrayChildren!, v),
+    )
+  } else {
+    return typeof value === 'bigint' ? toBeHex(value) : value
+  }
 }
 
 function getProviderFromChainId(chainId: number) {

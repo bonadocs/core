@@ -35,11 +35,16 @@ export type FragmentDisplayData = FragmentDisplayDataEntry[]
 type SimpleContractParamValue = string | boolean | BigNumberish
 export type ContractParam = SimpleContractParamValue | Array<ContractParam>
 
+export type SupportedFragmentType =
+  | FunctionFragment
+  | EventFragment
+  | ErrorFragment
+
 export interface ContractElementFragment {
   contractId: string
   fragmentKey: string
   signature: string
-  fragment: FunctionFragment | EventFragment | ErrorFragment
+  fragment: SupportedFragmentType
 }
 
 export interface Environment {

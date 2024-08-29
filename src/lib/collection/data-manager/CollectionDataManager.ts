@@ -52,6 +52,27 @@ export class CollectionDataManager {
   }
 
   /**
+   * Saves a version of the collection to the server and returns the URL.
+   *
+   * This currently uses the IPFS gateway as the server.
+   */
+  saveToServer(): Promise<string> {
+    return this.publishToIPFS()
+  }
+
+  /**
+   * This generates a widget configuration for the collection. If the collection
+   * has been saved previously, it will simply return the same URI.
+   */
+  async generateCollectionWidget() {
+    const collectionURI = await this.saveToServer()
+    const widgetConfig = {
+      collectionURI,
+    }
+    return saveToIPFS(JSON.stringify(widgetConfig))
+  }
+
+  /**
    * Saves the collection to IPFS and returns the IPFS URI
    */
   publishToIPFS(): Promise<string> {

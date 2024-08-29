@@ -71,15 +71,12 @@ export class WorkflowManagerView {
    *
    * @param workflowId
    */
-  async generateWidget(workflowId?: string): Promise<string> {
-    const collectionURI = await this.#dataManager.publishToIPFS()
+  async generateWidget(workflowId: string): Promise<string> {
     if (!workflowId) {
-      const widgetConfig = {
-        collectionURI,
-      }
-      return saveToIPFS(JSON.stringify(widgetConfig))
+      throw new Error('Workflow ID is required')
     }
 
+    const collectionURI = await this.#dataManager.saveToServer()
     const workflow = this.#workflowDefinitions.get(workflowId)
     if (!workflow) {
       throw new Error(`Workflow '${workflowId}' not found`)

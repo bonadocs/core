@@ -31,6 +31,7 @@ import {
   AddCollectionWorkflowVariableEvent,
   AddCollectionWorkflowVariableEventData,
   DeleteCollectionStringEvent,
+  DeleteCollectionStringEventData,
   DeleteCollectionWorkflowCodeEvent,
   DeleteCollectionWorkflowCodeEventData,
   RemoveCollectionContractEvent,
@@ -66,6 +67,7 @@ import {
   UpdateCollectionDescriptionEvent,
   UpdateCollectionDescriptionEventData,
   UpdateCollectionStringEvent,
+  UpdateCollectionStringEventData,
 } from './types'
 
 export function registerDataUpdateListeners(
@@ -180,7 +182,8 @@ export function registerDataUpdateListeners(
 }
 
 class UpdateCollectionStringEventListener
-  implements EventListener<'collection:update-string'>
+  implements
+    EventListener<'collection:update-string', UpdateCollectionStringEventData>
 {
   private previousValue: string | undefined
   constructor(private readonly collectionData: CollectionData) {}
@@ -200,7 +203,8 @@ class UpdateCollectionStringEventListener
 }
 
 class DeleteCollectionStringEventListener
-  implements EventListener<'collection:delete-string'>
+  implements
+    EventListener<'collection:delete-string', DeleteCollectionStringEventData>
 {
   private previousValue: string | undefined
   constructor(private readonly collectionData: CollectionData) {}

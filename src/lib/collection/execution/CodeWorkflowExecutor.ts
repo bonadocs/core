@@ -73,7 +73,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
             for (const library of libraries[s.language]) {
               await r.loadLibrary(library)
             }
-            await r.loadLibrary('@bonadocs/zimulatoor@1.0.0-dev.22')
+            await r.loadLibrary('@bonadocs/zimulatoor')
             return r
           }),
         ]),

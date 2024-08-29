@@ -1,12 +1,13 @@
 ﻿import {
   ErrorFragment,
   EventFragment,
+  Fragment,
   FunctionFragment,
   Interface,
 } from 'ethers'
 
 import { createEthersInterface } from '../../../util'
-import { ContractElementFragment } from '../../types'
+import { ContractElementFragment, SupportedFragmentType } from '../../types'
 import { CollectionDataManager } from '../CollectionDataManager'
 
 import { ValueManagerView } from './ValueManagerView'
@@ -62,24 +63,62 @@ export class ContractDetailsView {
     return this.#valueManagerView.getString(fullKey)
   }
 
-  getFunctionFragment(key: string) {
-    const fragment = this.getFragment(key)
-    if (fragment?.fragment instanceof FunctionFragment) {
-      return fragment
+  getFunctionFragment(key: string): ContractElementFragment | undefined {
+    const normalizedKey = this.normalizeFragmentKey(key)
+    if (!normalizedKey) {
+      return undefined
     }
 
-    // not a function fragment
-    if (fragment) {
+    const fragment = this.getFragment(normalizedKey)
+    if (!fragment) {
       return undefined
+    }
+
+    if (!(fragment.fragment instanceof FunctionFragment)) {
+      return undefined
+    }
+
+    return fragment
+  }
+
+  /**
+   * Returns the widget configuration for the given function fragment key.
+   * @param key
+   */
+  async getWidgetConfiguration(key: string) {
+    const functionFragment = this.getFunctionFragment(key)
+    if (!functionFragment) {
+      throw new Error(`Invalid function fragment key: ${key}`)
+    }
+
+    const functionKey = functionFragment.fragmentKey
+    const widgetConfigUri = await this.#dataManager.generateCollectionWidget()
+    return {
+      widgetConfigUri,
+      contract: this.#contractId,
+      functionKey,
+    }
+  }
+
+  normalizeFragmentKey(key: string): string | undefined {
+    const normalizedFragment = this.getFragment(key)
+
+    // already normalized
+    if (normalizedFragment) {
+      return normalizedFragment.fragmentKey
     }
 
     // key might be a selector or signature
-    const fn = this.#contractInterface.getFunction(key)
-    if (!fn) {
+    const fragment =
+      this.#contractInterface.getFunction(key) ||
+      this.#contractInterface.getEvent(key) ||
+      this.#contractInterface.getError(key)
+
+    if (!fragment || !this.isSupportedFragmentType(fragment)) {
       return undefined
     }
 
-    return this.getFragment(`${this.#contractId}.function.${fn.selector}`)
+    return this.getFragmentKey(fragment)
   }
 
   get contractInterface() {
@@ -99,19 +138,11 @@ export class ContractDetailsView {
   private populateInternalDataStructures() {
     this.#fragments.clear()
     for (const fragment of this.#contractInterface.fragments) {
-      let selector: string
-      if (
-        fragment instanceof ErrorFragment ||
-        fragment instanceof FunctionFragment
-      ) {
-        selector = fragment.selector
-      } else if (fragment instanceof EventFragment) {
-        selector = fragment.topicHash
-      } else {
+      if (!this.isSupportedFragmentType(fragment)) {
         continue
       }
 
-      const fragmentKey = `${this.#contractId}.${fragment.type}.${selector}`
+      const fragmentKey = this.getFragmentKey(fragment)
       this.#fragments.set(fragmentKey, {
         contractId: this.#contractId,
         fragmentKey,
@@ -119,5 +150,31 @@ export class ContractDetailsView {
         fragment,
       })
     }
+  }
+
+  private getFragmentKey(fragment: SupportedFragmentType): string {
+    let selector: string
+
+    if (
+      fragment instanceof ErrorFragment ||
+      fragment instanceof FunctionFragment
+    ) {
+      selector = fragment.selector
+    } else {
+      // if (fragment instanceof EventFragment) {
+      selector = fragment.topicHash
+    }
+
+    return `${this.#contractId}.${fragment.type}.${selector}`
+  }
+
+  private isSupportedFragmentType(
+    fragment: Fragment,
+  ): fragment is SupportedFragmentType {
+    return (
+      fragment instanceof FunctionFragment ||
+      fragment instanceof EventFragment ||
+      fragment instanceof ErrorFragment
+    )
   }
 }

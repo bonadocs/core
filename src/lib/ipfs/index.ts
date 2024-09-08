@@ -144,7 +144,7 @@ export async function saveToIPFS(data: string): Promise<string> {
 
   const form = new FormData()
   form.append('file', new Blob([data]))
-  const response = await pinataClient.post('/files', data, {})
+  const response = await pinataClient.post('/files', form, {})
   if (response.status !== 200) {
     throw new Error(`Failed to save to IPFS: ${response.statusText}`)
   }
@@ -181,23 +181,24 @@ function raceResolved<T>(
   return new Promise<T>((resolve, reject) => {
     const rejections: unknown[] = []
 
+    const doReject = (value: unknown) => {
+      rejections.push(value)
+      if (rejections.length === promises.length) {
+        reject(rejections)
+      }
+    }
+
     promises.forEach((promise) => {
-      Promise.resolve(promise)
+      promise
         .then((value) => {
           if (checkResolved(value)) {
             resolve(value)
           } else {
-            rejections.push(value)
-            if (rejections.length === promises.length) {
-              reject(rejections)
-            }
+            doReject(value)
           }
         })
         .catch((e) => {
-          rejections.push(e)
-          if (rejections.length === promises.length) {
-            reject(rejections)
-          }
+          doReject(e)
         })
     })
   })

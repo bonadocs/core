@@ -157,7 +157,7 @@ function getConsoleLogReplacer() {
     console.log('Loading JS script from URL:', url)
     const key = `script:${url}`
     const storage = await getCodeCacheStore()
-    const cached = await storage.get(key)
+    const cached = await storage.getString(key)
     if (cached) {
       console.log('Found cached script:', url)
       return cached

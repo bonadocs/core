@@ -1,4 +1,5 @@
-﻿import {
+﻿import { BaseStorage } from './BaseStorage'
+import {
   RangeItem,
   StorageAPI,
   StorageData,
@@ -59,19 +60,20 @@ type Task =
   | RemoveRangeTask
   | TransactionTask
 
-export class UnifiedStorage implements StorageAPI {
+export class UnifiedStorage extends BaseStorage {
   readonly #dbName: string
   readonly #storeName: string
   static #backends: Record<string, StorageAPI> = {}
   static readonly #tasks: Task[] = []
   static #isRunning = true
 
-  private constructor(dbName: string, storeName: string) {
+  protected constructor(dbName: string, storeName: string) {
+    super()
     this.#dbName = dbName
     this.#storeName = storeName
   }
 
-  get(key: StorageKey): Promise<StorageData | null> {
+  get(key: StorageKey): Promise<Uint8Array | null> {
     return UnifiedStorage.#get(this.#dbName, this.#storeName, key)
   }
 
@@ -79,7 +81,7 @@ export class UnifiedStorage implements StorageAPI {
     return UnifiedStorage.#getRange(this.#dbName, this.#storeName, prefix)
   }
 
-  set(key: StorageKey, value: StorageData): Promise<void> {
+  doSet(key: StorageKey, value: Uint8Array): Promise<void> {
     return UnifiedStorage.#set(this.#dbName, this.#storeName, key, value)
   }
 
@@ -199,8 +201,8 @@ export class UnifiedStorage implements StorageAPI {
     dbName: string,
     storeName: string,
     key: StorageKey,
-  ): Promise<StorageData | null> {
-    return new Promise<StorageData | null>((resolve) => {
+  ): Promise<Uint8Array | null> {
+    return new Promise<Uint8Array | null>((resolve) => {
       this.#tasks.push({
         operation: 'get',
         dbName,

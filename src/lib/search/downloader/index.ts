@@ -30,7 +30,7 @@ export async function downloadFileFromSearchDB(
     const storage = await getSearchDBStore()
     let fileContent: string | null = null
     await storage.transaction(async (storage) => {
-      const storedDbFile = await storage.get(pathInRepo)
+      const storedDbFile = await storage.getString(pathInRepo)
       if (storedDbFile) {
         const dbFile: SearchDBFile = JSON.parse(storedDbFile)
         if (dbFile.expiry > Date.now()) {

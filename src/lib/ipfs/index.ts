@@ -137,7 +137,7 @@ export async function saveToIPFS(data: string): Promise<string> {
   const hash = id(data)
 
   const metadataStore = await getMetadataStore()
-  const existing = await metadataStore.get(`ipfs-hash:${hash}`)
+  const existing = await metadataStore.getString(`ipfs-hash:${hash}`)
   if (existing) {
     return existing
   }
@@ -157,7 +157,7 @@ export async function saveToIPFS(data: string): Promise<string> {
 
 async function loadIPFSDataFromCache(cid: string): Promise<unknown> {
   const metadataStore = await getMetadataStore()
-  const data = await metadataStore.get(`ipfs-data:${cid}`)
+  const data = await metadataStore.getString(`ipfs-data:${cid}`)
   if (!data) {
     return undefined
   }

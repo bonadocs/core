@@ -147,7 +147,7 @@ export class Collection {
 
   static async createFromLocalStore(id: string) {
     const store = await getCollectionStore(id)
-    const snapshot = await store.get('data')
+    const snapshot = await store.getString('data')
     if (!snapshot) {
       throw new Error(`Collection ${id} not found`)
     }

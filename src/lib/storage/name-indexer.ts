@@ -7,7 +7,7 @@ export async function getLocalCollectionNames(
   store?: StorageAPI,
 ): Promise<Record<string, { name: string; lastAccessTimestamp: number }>> {
   store = store ?? (await getLocalCollectionNameStore())
-  const names = await store.get('collectionNames')
+  const names = await store.getString('collectionNames')
   if (!names) {
     return {}
   }

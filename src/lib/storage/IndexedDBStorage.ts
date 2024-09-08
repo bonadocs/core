@@ -1,9 +1,10 @@
-﻿import { RangeItem, StorageAPI, StorageData, StorageKey } from './StorageAPI'
+﻿import { BaseStorage } from './BaseStorage'
+import { RangeItem, StorageKey } from './StorageAPI'
 
 /**
  * A storage implementation that uses the IndexedDB API.
  */
-export class IndexedDBStorage implements StorageAPI {
+export class IndexedDBStorage extends BaseStorage {
   readonly #dbPromise: Promise<void>
   #db: IDBDatabase | null = null
   #storeName = 'key-value-store'
@@ -13,6 +14,7 @@ export class IndexedDBStorage implements StorageAPI {
     private readonly dataKey: string,
     private readonly version = 1,
   ) {
+    super()
     this.#dbPromise = this.openDatabase()
       .then((db) => {
         this.#db = db
@@ -47,7 +49,7 @@ export class IndexedDBStorage implements StorageAPI {
     })
   }
 
-  async get(key: StorageKey): Promise<StorageData | null> {
+  async get(key: StorageKey): Promise<Uint8Array | null> {
     key = this.getFullKey(key)
     await this.#dbPromise
     return new Promise((resolve, reject) => {
@@ -74,7 +76,7 @@ export class IndexedDBStorage implements StorageAPI {
         const cursor = (event.target as IDBRequest).result as IDBCursorWithValue
         if (cursor) {
           items.push({
-            data: (cursor.value as { binary: Uint8Array }).binary,
+            data: cursor.value,
             key: cursor.key as StorageKey,
           })
           cursor.continue()
@@ -87,7 +89,7 @@ export class IndexedDBStorage implements StorageAPI {
     })
   }
 
-  async set(key: StorageKey, value: StorageData): Promise<void> {
+  async doSet(key: StorageKey, value: Uint8Array): Promise<void> {
     key = this.getFullKey(key)
     await this.#dbPromise
     return new Promise((resolve, reject) => {
@@ -126,6 +128,6 @@ export class IndexedDBStorage implements StorageAPI {
   }
 
   private getFullKey(key: StorageKey): StorageKey {
-    return [this.dataKey, ...key]
+    return [this.dataKey, ...this.normalizeKey(key)]
   }
 }

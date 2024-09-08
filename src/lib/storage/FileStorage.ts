@@ -1,7 +1,8 @@
 import fs from 'fs/promises'
 import path from 'path'
 
-import { RangeItem, StorageAPI, StorageData, StorageKey } from './StorageAPI'
+import { BaseStorage } from './BaseStorage'
+import { RangeItem, StorageKey } from './StorageAPI'
 
 class FileStorageError extends Error {
   constructor(message: string) {
@@ -10,7 +11,7 @@ class FileStorageError extends Error {
   }
 }
 
-export class FileStorage implements StorageAPI {
+export class FileStorage extends BaseStorage {
   private readonly dir: string
   private isSetup = false
 
@@ -19,6 +20,7 @@ export class FileStorage implements StorageAPI {
     storeName: string,
     private readonly createIfNotExists: boolean,
   ) {
+    super()
     this.dir = path.join(directory, `${storeName}-store`)
   }
 
@@ -64,7 +66,8 @@ export class FileStorage implements StorageAPI {
     }
   }
 
-  async get(key: StorageKey): Promise<StorageData | null> {
+  async get(key: StorageKey): Promise<Uint8Array | null> {
+    key = this.normalizeKey(key)
     try {
       return await fs.readFile(this.keyToPath(key))
     } catch (error) {
@@ -73,6 +76,7 @@ export class FileStorage implements StorageAPI {
   }
 
   async getRange(prefix: StorageKey): Promise<RangeItem[] | null> {
+    prefix = this.normalizeKey(prefix)
     const content = await this.get(prefix)
     if (content) {
       return [{ key: prefix, data: content }]
@@ -87,7 +91,8 @@ export class FileStorage implements StorageAPI {
     }
   }
 
-  async set(key: StorageKey, value: StorageData): Promise<void> {
+  async doSet(key: StorageKey, value: Uint8Array): Promise<void> {
+    key = this.normalizeKey(key)
     const filePath = this.keyToPath(key)
     try {
       const dir = path.dirname(filePath)
@@ -105,6 +110,7 @@ export class FileStorage implements StorageAPI {
   }
 
   async remove(key: StorageKey): Promise<void> {
+    key = this.normalizeKey(key)
     try {
       await fs.unlink(this.keyToPath(key))
     } catch (error) {
@@ -119,6 +125,7 @@ export class FileStorage implements StorageAPI {
   }
 
   async removeRange(prefix: StorageKey): Promise<void> {
+    prefix = this.normalizeKey(prefix)
     try {
       await fs.rm(this.keyToPath(prefix), { recursive: true, force: true })
     } catch (error) {

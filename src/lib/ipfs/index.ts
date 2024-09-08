@@ -5,12 +5,12 @@ import { config } from '../config'
 import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
+  'https://gateway.pinata.cloud',
   'https://nftstorage.link',
   'https://ipfs.io',
   'https://dweb.link',
   'https://cloudflare-ipfs.com',
   'https://cf-ipfs.com',
-  'https://gateway.pinata.cloud',
   'https://ipfs.eth.aragon.network',
   'https://4everland.io',
   'https://w3s.link',
@@ -80,10 +80,10 @@ class HttpClient {
   }
 }
 
-const nftStorageClient = axios.create({
-  baseURL: 'https://api.nft.storage',
+const pinataClient = axios.create({
+  baseURL: 'https://uploads.pinata.cloud/v3',
   headers: {
-    Authorization: `Bearer ${config.nftStorageApiKey}`,
+    Authorization: `Bearer ${config.pinataApiKey}`,
   },
   validateStatus: () => true,
 })
@@ -142,11 +142,13 @@ export async function saveToIPFS(data: string): Promise<string> {
     return existing
   }
 
-  const response = await nftStorageClient.post('/upload', data, {})
+  const form = new FormData()
+  form.append('file', new Blob([data]))
+  const response = await pinataClient.post('/files', data, {})
   if (response.status !== 200) {
     throw new Error(`Failed to save to IPFS: ${response.statusText}`)
   }
-  const cid = await response.data.value.cid
+  const cid = await response.data.data.cid
   const uri = `ipfs://${cid}`
   await metadataStore.set(`ipfs-hash:${hash}`, uri)
   await cacheIPFSData(cid, data)

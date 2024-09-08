@@ -1,6 +1,6 @@
 {
   "name": "@bonadocs/core",
-  "version": "1.0.3-alpha.66",
+  "version": "1.0.3-alpha.67",
   "description": "Core library powering Bonadocs applications",
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",

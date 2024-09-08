@@ -111,15 +111,6 @@ export type WorkflowDefinition = {
   execution: CodeSnippet[] | string[]
 }
 
-export interface WorkflowExecutionContext {
-  workflow: WorkflowDefinition
-
-  /**
-   * Map of the `contractId.functionSelector` to the execution context.
-   */
-  contexts: Map<string, ExecutionContext>
-}
-
 export interface CollectionData {
   id: string
   name: string
@@ -131,3 +122,5 @@ export interface CollectionData {
   variables: VariableDefinition[]
   workflows: WorkflowDefinition[]
 }
+
+export type CollectionDataSnapshot = string | CollectionData

@@ -1,4 +1,4 @@
-import { httpGet } from '../api'
+import { getApi, httpGet } from '../api'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout } from '../ipfs'
 import { loadProtocolMetadata } from '../search'
@@ -6,7 +6,11 @@ import { getCollectionStore } from '../storage'
 import { jsonUtils } from '../util'
 
 import { CollectionDataManager } from './data-manager'
-import { CollectionData, validateCollection } from './spec'
+import {
+  CollectionData,
+  CollectionDataSnapshot,
+  validateCollection,
+} from './spec'
 import { generateRandomId } from './util'
 
 export * from './data-manager'
@@ -66,10 +70,30 @@ export class Collection {
       throw Error('Failed to load collection data. Not found on IPFS network.')
     }
 
-    if (typeof data !== 'string') {
-      return this.createFromSnapshot(JSON.stringify(data))
+    return this.createFromSnapshot(data as CollectionDataSnapshot)
+  }
+
+  /**
+   * Loads a collection from the Bonadocs API. You must have configured auth on
+   * the bonadocs API before using this.
+   *
+   * @param projectId
+   * @param collectionId
+   */
+  static async createFromBonadocsApi(projectId: number, collectionId: number) {
+    const api = getApi()
+    const collectionData = await api.getCollectionData(projectId, collectionId)
+    if (!collectionData?.id) {
+      throw Error('Failed to load collection data from the API')
     }
-    return this.createFromSnapshot(data)
+
+    // const store = await getCollectionStore(collectionData.id)
+    // const localDataSnapshot = await store.get('data')
+    const collection = this.createFromSnapshot(collectionData)
+    collection.manager.setProjectId(projectId)
+    collection.manager.setCollectionId(collectionId)
+    await collection.manager.saveToLocal()
+    return collection
   }
 
   static async createFromProtocolRegistry(slug: string) {
@@ -96,10 +120,7 @@ export class Collection {
         throw Error(`Failed to load collection data at ${uri}.`)
       }
 
-      if (typeof responseData !== 'string') {
-        return this.createFromSnapshot(JSON.stringify(responseData))
-      }
-      return this.createFromSnapshot(responseData)
+      return this.createFromSnapshot(responseData as CollectionDataSnapshot)
     }
 
     throw Error('Invalid URI')
@@ -109,8 +130,11 @@ export class Collection {
    * Loads a collection from a JSON snapshot.
    * @param snapshot
    */
-  static createFromSnapshot(snapshot: string) {
-    const data = JSON.parse(snapshot, jsonUtils.reviver)
+  static createFromSnapshot(snapshot: CollectionDataSnapshot) {
+    const data =
+      typeof snapshot === 'string'
+        ? JSON.parse(snapshot, jsonUtils.reviver)
+        : snapshot
     const validationResult = validateCollection(data)
     if (!validationResult.status) {
       throw new BonadocsError(validationResult)

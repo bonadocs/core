@@ -89,6 +89,32 @@ export class WorkflowManagerView {
     return saveToIPFS(JSON.stringify(widgetConfig))
   }
 
+  /**
+   * Generates a widget from the workflow and
+   * returns the IPFS URI. If no workflowId is
+   * provided, the generated widget will
+   * include the workflow execution context.
+   *
+   * @param workflowId
+   */
+  async generateIPFSWidget(workflowId: string): Promise<string> {
+    if (!workflowId) {
+      throw new Error('Workflow ID is required')
+    }
+
+    const collectionURI = await this.#dataManager.publishToIPFS()
+    const workflow = this.#workflowDefinitions.get(workflowId)
+    if (!workflow) {
+      throw new Error(`Workflow '${workflowId}' not found`)
+    }
+
+    const widgetConfig = {
+      collectionURI,
+      execution: workflow.execution,
+    }
+    return saveToIPFS(JSON.stringify(widgetConfig))
+  }
+
   async addWorkflow(workflow: WorkflowDefinition) {
     if (!workflow.id) {
       workflow.id = generateRandomId()

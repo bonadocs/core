@@ -1,7 +1,11 @@
 import axios, { AxiosInstance } from 'axios'
 import { TransactionReceiptParams } from 'ethers'
 
-import { ExecutableEVMCall, ExecutionError } from '../collection'
+import {
+  CollectionData,
+  ExecutableEVMCall,
+  ExecutionError,
+} from '../collection'
 import { config } from '../config'
 import { jsonUtils } from '../util'
 
@@ -58,6 +62,27 @@ class BonadocsAPI {
       // ignore
     }
     return undefined
+  }
+
+  async getCollectionData(
+    projectId: number,
+    collectionId: number,
+  ): Promise<CollectionData | undefined> {
+    try {
+      const response = await this.client.get(
+        `/projects/${projectId}/collections/${collectionId}/data`,
+      )
+      if (response.status === 200 && response.data?.data) {
+        return response.data.data
+      }
+    } catch {
+      // ignore
+    }
+    return undefined
+  }
+
+  setupAuth(authToken: string) {
+    this.client.defaults.headers['Authorization'] = `Bearer ${authToken}`
   }
 }
 

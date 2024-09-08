@@ -33,7 +33,9 @@ export async function getCollectionStore(
   }
 
   if (collectionName) {
-    indexCollectionName(collectionId, collectionName)
+    indexCollectionName(collectionId, collectionName).catch((e) => {
+      console.error('Failed to index collection name', e)
+    })
   }
   return collectionStores[collectionId]
 }

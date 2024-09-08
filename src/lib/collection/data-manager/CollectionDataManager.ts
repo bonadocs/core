@@ -1,4 +1,4 @@
-﻿import { FunctionFragment } from 'ethers'
+﻿import { FunctionFragment, sha256, toUtf8Bytes } from 'ethers'
 
 import { BonadocsError } from '../../errors'
 import { saveToIPFS } from '../../ipfs'
@@ -27,11 +27,21 @@ export class CollectionDataManager {
   #valueManagerView: ValueManagerView | undefined
   #contractDetailsViews = new Map<string, ContractDetailsView>()
   #functionFragmentViews = new Map<string, Map<string, FunctionFragmentView>>()
+  #projectId?: number
+  #collectionId?: number
 
   constructor(data: CollectionData) {
     this.#data = data
     this.#eventEmitter = new EventEmitter()
     this.setupEventListeners()
+  }
+
+  setProjectId(projectId: number) {
+    this.#projectId = projectId
+  }
+
+  setCollectionId(collectionId: number) {
+    this.#collectionId = collectionId
   }
 
   async emit<TEvent extends EventType, TEventData>(
@@ -52,11 +62,15 @@ export class CollectionDataManager {
   }
 
   /**
-   * Saves a version of the collection to the server and returns the URL.
+   * Saves a version of the collection to the server. Throws an error if the
+   * save could not be completed.
    *
-   * This currently uses the IPFS gateway as the server.
+   * THIS DOES NOT WORK YET.
    */
   saveToServer(): Promise<string> {
+    if (!this.#projectId || !this.#collectionId) {
+      throw new Error('The project and collection IDs must be set')
+    }
     return this.publishToIPFS()
   }
 
@@ -108,6 +122,13 @@ export class CollectionDataManager {
    */
   get data() {
     return this.#data
+  }
+
+  /**
+   * A hash of the snapshot of the collection data.
+   */
+  get snapshotHash(): string {
+    return sha256(toUtf8Bytes(this.getSnapshot()))
   }
 
   get environmentManagerView(): CollectionEnvironmentManagerView {

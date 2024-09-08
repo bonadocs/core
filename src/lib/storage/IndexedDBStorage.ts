@@ -1,4 +1,4 @@
-﻿import { StorageAPI } from './StorageAPI'
+﻿import { RangeItem, StorageAPI, StorageData, StorageKey } from './StorageAPI'
 
 /**
  * A storage implementation that uses the IndexedDB API.
@@ -47,8 +47,8 @@ export class IndexedDBStorage implements StorageAPI {
     })
   }
 
-  async get(key: string): Promise<string | null> {
-    key = `${this.dataKey}-${key}`
+  async get(key: StorageKey): Promise<StorageData | null> {
+    key = this.getFullKey(key)
     await this.#dbPromise
     return new Promise((resolve, reject) => {
       const transaction = this.#db!.transaction(this.#storeName, 'readonly')
@@ -58,25 +58,74 @@ export class IndexedDBStorage implements StorageAPI {
     })
   }
 
-  async set(key: string, value: string): Promise<void> {
-    key = `${this.dataKey}-${key}`
+  async getRange(prefix: StorageKey): Promise<RangeItem[] | null> {
+    prefix = this.getFullKey(prefix)
     await this.#dbPromise
     return new Promise((resolve, reject) => {
-      const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
-      const request = transaction.objectStore(this.#storeName).put(value, key)
-      request.onsuccess = () => resolve()
+      const transaction = this.#db!.transaction(this.#storeName, 'readonly')
+      const store = transaction.objectStore(this.#storeName)
+      const lowerBound = prefix
+      const upperBound = [...prefix, '\uffff']
+      const range = IDBKeyRange.bound(lowerBound, upperBound)
+      const request = store.openCursor(range)
+      const items: RangeItem[] = []
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result as IDBCursorWithValue
+        if (cursor) {
+          items.push({
+            data: (cursor.value as { binary: Uint8Array }).binary,
+            key: cursor.key as StorageKey,
+          })
+          cursor.continue()
+        } else {
+          resolve(items)
+        }
+      }
+
       request.onerror = () => reject(request.error)
     })
   }
 
-  async remove(key: string): Promise<void> {
-    key = `${this.dataKey}-${key}`
+  async set(key: StorageKey, value: StorageData): Promise<void> {
+    key = this.getFullKey(key)
     await this.#dbPromise
     return new Promise((resolve, reject) => {
       const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
-      const request = transaction.objectStore(this.#storeName).delete(key)
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
+      transaction.objectStore(this.#storeName).put(value, key)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
     })
+  }
+
+  async remove(key: StorageKey): Promise<void> {
+    key = this.getFullKey(key)
+    await this.#dbPromise
+    return new Promise((resolve, reject) => {
+      const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
+      transaction.objectStore(this.#storeName).delete(key)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+  }
+
+  async removeRange(prefix: StorageKey): Promise<void> {
+    prefix = this.getFullKey(prefix)
+    await this.#dbPromise
+    return new Promise((resolve, reject) => {
+      const transaction = this.#db!.transaction(this.#storeName, 'readwrite')
+      const store = transaction.objectStore(this.#storeName)
+      const lowerBound = prefix
+      const upperBound = [...prefix, '\uffff']
+      const range = IDBKeyRange.bound(lowerBound, upperBound)
+      store.delete(range)
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+  }
+
+  private getFullKey(key: StorageKey): StorageKey {
+    return [this.dataKey, ...key]
   }
 }

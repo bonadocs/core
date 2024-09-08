@@ -1,4 +1,10 @@
-﻿import { StorageAPI, TransactionFunction } from './StorageAPI'
+﻿import {
+  RangeItem,
+  StorageAPI,
+  StorageData,
+  StorageKey,
+  TransactionFunction,
+} from './StorageAPI'
 
 type TaskCallback = (value: unknown) => void
 
@@ -14,18 +20,28 @@ type InitTask = {
 
 type GetTask = {
   operation: 'get'
-  key: string
+  key: StorageKey
+} & DBTask
+
+type GetRangeTask = {
+  operation: 'getRange'
+  prefix: StorageKey
 } & DBTask
 
 type SetTask = {
   operation: 'set'
-  key: string
-  value: string
+  key: StorageKey
+  value: StorageData
 } & DBTask
 
 type RemoveTask = {
   operation: 'remove'
-  key: string
+  key: StorageKey
+} & DBTask
+
+type RemoveRangeTask = {
+  operation: 'removeRange'
+  prefix: StorageKey
 } & DBTask
 
 type TransactionTask = {
@@ -34,7 +50,14 @@ type TransactionTask = {
   callback: TaskCallback
 } & DBTask
 
-type Task = InitTask | GetTask | SetTask | RemoveTask | TransactionTask
+type Task =
+  | InitTask
+  | GetTask
+  | GetRangeTask
+  | SetTask
+  | RemoveTask
+  | RemoveRangeTask
+  | TransactionTask
 
 export class UnifiedStorage implements StorageAPI {
   readonly #dbName: string
@@ -48,16 +71,24 @@ export class UnifiedStorage implements StorageAPI {
     this.#storeName = storeName
   }
 
-  get(key: string): Promise<string | null> {
+  get(key: StorageKey): Promise<StorageData | null> {
     return UnifiedStorage.#get(this.#dbName, this.#storeName, key)
   }
 
-  set(key: string, value: string): Promise<void> {
+  getRange(prefix: StorageKey): Promise<RangeItem[] | null> {
+    return UnifiedStorage.#getRange(this.#dbName, this.#storeName, prefix)
+  }
+
+  set(key: StorageKey, value: StorageData): Promise<void> {
     return UnifiedStorage.#set(this.#dbName, this.#storeName, key, value)
   }
 
-  remove(key: string): Promise<void> {
+  remove(key: StorageKey): Promise<void> {
     return UnifiedStorage.#remove(this.#dbName, this.#storeName, key)
+  }
+
+  removeRange(prefix: StorageKey): Promise<void> {
+    return UnifiedStorage.#removeRange(this.#dbName, this.#storeName, prefix)
   }
 
   async transaction(func: TransactionFunction): Promise<void> {
@@ -100,6 +131,12 @@ export class UnifiedStorage implements StorageAPI {
           break
         case 'transaction':
           await this.#handleTransaction(task)
+          break
+        case 'getRange':
+          await this.#handleGetRange(task)
+          break
+        case 'removeRange':
+          await this.#handleRemoveRange(task)
           break
       }
     }
@@ -158,8 +195,12 @@ export class UnifiedStorage implements StorageAPI {
     callback(undefined)
   }
 
-  static #get(dbName: string, storeName: string, key: string) {
-    return new Promise<string | null>((resolve) => {
+  static #get(
+    dbName: string,
+    storeName: string,
+    key: StorageKey,
+  ): Promise<StorageData | null> {
+    return new Promise<StorageData | null>((resolve) => {
       this.#tasks.push({
         operation: 'get',
         dbName,
@@ -177,7 +218,35 @@ export class UnifiedStorage implements StorageAPI {
     callback(value)
   }
 
-  static #set(dbName: string, storeName: string, key: string, value: string) {
+  static #getRange(
+    dbName: string,
+    storeName: string,
+    prefix: StorageKey,
+  ): Promise<RangeItem[] | null> {
+    return new Promise<RangeItem[] | null>((resolve) => {
+      this.#tasks.push({
+        operation: 'getRange',
+        dbName,
+        storeName,
+        prefix,
+        callback: resolve as TaskCallback,
+      })
+    })
+  }
+
+  static async #handleGetRange(task: GetRangeTask) {
+    const { dbName, storeName, prefix, callback } = task
+    const backend = this.#backends[`${dbName}:${storeName}`]
+    const value = await backend.getRange(prefix)
+    callback(value)
+  }
+
+  static #set(
+    dbName: string,
+    storeName: string,
+    key: StorageKey,
+    value: StorageData,
+  ) {
     return new Promise<void>((resolve) => {
       this.#tasks.push({
         operation: 'set',
@@ -197,7 +266,7 @@ export class UnifiedStorage implements StorageAPI {
     callback(undefined)
   }
 
-  static #remove(dbName: string, storeName: string, key: string) {
+  static #remove(dbName: string, storeName: string, key: StorageKey) {
     return new Promise<void>((resolve) => {
       this.#tasks.push({
         operation: 'remove',
@@ -213,6 +282,25 @@ export class UnifiedStorage implements StorageAPI {
     const { dbName, storeName, key, callback } = task
     const backend = this.#backends[`${dbName}:${storeName}`]
     await backend.remove(key)
+    callback(undefined)
+  }
+
+  static #removeRange(dbName: string, storeName: string, prefix: StorageKey) {
+    return new Promise<void>((resolve) => {
+      this.#tasks.push({
+        operation: 'removeRange',
+        dbName,
+        storeName,
+        prefix,
+        callback: resolve as TaskCallback,
+      })
+    })
+  }
+
+  static async #handleRemoveRange(task: RemoveRangeTask) {
+    const { dbName, storeName, prefix, callback } = task
+    const backend = this.#backends[`${dbName}:${storeName}`]
+    await backend.removeRange(prefix)
     callback(undefined)
   }
 

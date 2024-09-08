@@ -79,7 +79,7 @@ export class CollectionDataManager {
    * has been saved previously, it will simply return the same URI.
    */
   async generateCollectionWidget() {
-    const collectionURI = await this.saveToServer()
+    const collectionURI = await this.publishToIPFS()
     const widgetConfig = {
       collectionURI,
     }

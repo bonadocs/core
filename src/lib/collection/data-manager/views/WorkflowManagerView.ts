@@ -76,7 +76,7 @@ export class WorkflowManagerView {
       throw new Error('Workflow ID is required')
     }
 
-    const collectionURI = await this.#dataManager.saveToServer()
+    const collectionURI = await this.#dataManager.publishToIPFS()
     const workflow = this.#workflowDefinitions.get(workflowId)
     if (!workflow) {
       throw new Error(`Workflow '${workflowId}' not found`)

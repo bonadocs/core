@@ -5,16 +5,16 @@ import { config } from '../config'
 import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
+  {
+    url: 'https://beige-accurate-constrictor-56.mypinata.cloud',
+    headers: {
+      authorization: config.pinataApiKey,
+    },
+  },
   'https://gateway.pinata.cloud',
-  'https://nftstorage.link',
   'https://ipfs.io',
   'https://dweb.link',
-  'https://cloudflare-ipfs.com',
-  'https://cf-ipfs.com',
-  'https://ipfs.eth.aragon.network',
-  'https://4everland.io',
   'https://w3s.link',
-  'https://trustless-gateway.link',
 ]
 
 type HttpResponse = {
@@ -29,7 +29,10 @@ class HttpClient {
   #httpClient: AxiosInstance
   readonly #totalWaitTime = 5000
 
-  constructor(private baseUrl: string) {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly defaultHeaders: Record<string, string> = {},
+  ) {
     this.#httpClient = axios.create({
       baseURL: baseUrl,
     })
@@ -45,7 +48,9 @@ class HttpClient {
       return undefined
     }
 
-    const response = await this.#httpClient.get(`${this.baseUrl}${path}`)
+    const response = await this.#httpClient.get(`${this.baseUrl}${path}`, {
+      headers: this.defaultHeaders,
+    })
     if (response.status === 429) {
       this.#waiting = true
       await new Promise((resolve) =>
@@ -90,7 +95,13 @@ const pinataClient = axios.create({
 
 function getClients(): HttpClient[] {
   if (!clients) {
-    clients = ipfsGateways.map((gatewayUrl) => new HttpClient(gatewayUrl))
+    clients = ipfsGateways.map((gateway) => {
+      if (typeof gateway === 'string') {
+        return new HttpClient(gateway)
+      }
+
+      return new HttpClient(gateway.url, gateway.headers)
+    })
   }
 
   return clients

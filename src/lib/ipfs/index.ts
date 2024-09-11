@@ -5,12 +5,6 @@ import { config } from '../config'
 import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
-  {
-    url: 'https://beige-accurate-constrictor-56.mypinata.cloud',
-    headers: {
-      authorization: config.pinataApiKey,
-    },
-  },
   'https://gateway.pinata.cloud',
   'https://ipfs.io',
   'https://dweb.link',
@@ -29,10 +23,7 @@ class HttpClient {
   #httpClient: AxiosInstance
   readonly #totalWaitTime = 5000
 
-  constructor(
-    private readonly baseUrl: string,
-    private readonly defaultHeaders: Record<string, string> = {},
-  ) {
+  constructor(private readonly baseUrl: string) {
     this.#httpClient = axios.create({
       baseURL: baseUrl,
     })
@@ -48,9 +39,7 @@ class HttpClient {
       return undefined
     }
 
-    const response = await this.#httpClient.get(`${this.baseUrl}${path}`, {
-      headers: this.defaultHeaders,
-    })
+    const response = await this.#httpClient.get(`${this.baseUrl}${path}`)
     if (response.status === 429) {
       this.#waiting = true
       await new Promise((resolve) =>
@@ -85,7 +74,7 @@ class HttpClient {
   }
 }
 
-const pinataClient = axios.create({
+const pinataUploadClient = axios.create({
   baseURL: 'https://uploads.pinata.cloud/v3',
   headers: {
     Authorization: `Bearer ${config.pinataApiKey}`,
@@ -95,13 +84,7 @@ const pinataClient = axios.create({
 
 function getClients(): HttpClient[] {
   if (!clients) {
-    clients = ipfsGateways.map((gateway) => {
-      if (typeof gateway === 'string') {
-        return new HttpClient(gateway)
-      }
-
-      return new HttpClient(gateway.url, gateway.headers)
-    })
+    clients = ipfsGateways.map((gateway) => new HttpClient(gateway))
   }
 
   return clients
@@ -155,7 +138,7 @@ export async function saveToIPFS(data: string): Promise<string> {
 
   const form = new FormData()
   form.append('file', new Blob([data]))
-  const response = await pinataClient.post('/files', form, {})
+  const response = await pinataUploadClient.post('/files', form, {})
   if (response.status !== 200) {
     throw new Error(`Failed to save to IPFS: ${response.statusText}`)
   }

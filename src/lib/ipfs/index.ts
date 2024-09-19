@@ -74,8 +74,8 @@ class HttpClient {
   }
 }
 
-const pinataUploadClient = axios.create({
-  baseURL: 'https://uploads.pinata.cloud/v3',
+const pinataApiClient = axios.create({
+  baseURL: 'https://api.pinata.cloud/v3',
   headers: {
     Authorization: `Bearer ${config.pinataApiKey}`,
   },
@@ -136,13 +136,16 @@ export async function saveToIPFS(data: string): Promise<string> {
     return existing
   }
 
-  const form = new FormData()
-  form.append('file', new Blob([data]))
-  const response = await pinataUploadClient.post('/files', form, {})
+  const response = await pinataApiClient.post(
+    'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+    {
+      pinataContent: JSON.parse(data),
+    },
+  )
   if (response.status !== 200) {
     throw new Error(`Failed to save to IPFS: ${response.statusText}`)
   }
-  const cid = await response.data.data.cid
+  const cid = await response.data.IpfsHash
   const uri = `ipfs://${cid}`
   await metadataStore.set(`ipfs-hash:${hash}`, uri)
   await cacheIPFSData(cid, data)

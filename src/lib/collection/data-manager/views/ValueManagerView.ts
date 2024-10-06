@@ -1,4 +1,5 @@
-﻿import { getDefaultLibraries } from '../../execution/util'
+﻿import { getCodeRunner } from '../../../codesandbox'
+import { getDefaultLibraries } from '../../execution/util'
 import { CodeSnippetLanguage } from '../../spec'
 import { CollectionDataManager } from '../CollectionDataManager'
 import {
@@ -25,6 +26,13 @@ export class ValueManagerView {
       `libraries.${language}`,
       JSON.stringify(Array.from(new Set(languageLibraries))),
     )
+
+    // preload library asynchronously
+    getCodeRunner(language)
+      .then((r) => r.loadLibrary(library))
+      .catch((e) => {
+        console.error(`Failed to pre-load library "${library}"`, e)
+      })
   }
 
   async removeLibrary(language: CodeSnippetLanguage, library: string) {

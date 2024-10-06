@@ -13,7 +13,6 @@ export class BrowserJSCodeRunner extends JavaScriptCodeRunner {
     context: CodeRunnerContext,
   ): string {
     return `${baseScript};
-
 ${this.loadContextScript(context)}
 
 self.process = {};
@@ -24,11 +23,17 @@ async function run() {
   ${code}
 }
 
-run().then((result) => {
-  self.postMessage({ result: {value: result} });
-}).catch((error) => {
-  self.postMessage({ error });
-});`
+async function orchestrate() {
+  await resolveDynamicLibraries();
+  try {
+    const result = await run();
+    self.postMessage({ result: {value: result} });
+  } catch (error) {
+    self.postMessage({ error });
+  }
+}
+
+orchestrate();`
   }
 
   protected runScript(

@@ -16,11 +16,17 @@ async function run() {
   ${code}
 }
 
-run().then((result) => {
-  onBonadocsExecutionSuccess(result)
-}).catch((error) => {
-  onBonadocsExecutionError(error)
-})`
+async function orchestrate() {
+  await resolveDynamicLibraries();
+  try {
+    const result = await run();
+    onBonadocsExecutionSuccess(result)
+  } catch (error) {
+    onBonadocsExecutionError(error)
+  }
+}
+
+orchestrate();`
   }
 
   protected runScript(

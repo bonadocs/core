@@ -36,12 +36,12 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
       )
     }
     const packageUrl = await this.getPackageUrl(scope, packageName, version)
-    ;(this.#libraryCode[name] = await this.loadScriptFromUrl(packageUrl)),
-      console.log('Loaded JS library:', name)
+    this.#libraryCode[name] = await this.loadScriptFromUrl(packageUrl)
+    console.log('Loaded JS library:', name)
   }
 
   private async loadBaseScript(): Promise<string> {
-    let script = ''
+    let script = 'const dynamicLibraries = {};'
     for (const [name, code] of Object.entries(this.#libraryCode)) {
       script += `
 // Library: ${name}  - Bonadocs JS CodeRunner
@@ -77,6 +77,17 @@ function getConsoleLogReplacer() {
     return value
   }
 }
+
+async function resolveDynamicLibraries() {
+  const libraries = Object.getOwnPropertyNames(dynamicLibraries)
+  for (const library of libraries) {
+    dynamicLibraries[library] = await dynamicLibraries[library];
+  }
+}
+
+function require(library) {
+  return dynamicLibraries[library];
+}
 `
     return script
   }
@@ -87,7 +98,7 @@ function getConsoleLogReplacer() {
     version: string | undefined,
   ): Promise<string> {
     const metadata = await this.loadPackageMetadata(scope, packageName)
-    version ??= metadata.tags.latest
+    version ??= metadata?.tags?.latest
 
     if (!version) {
       throw new Error(
@@ -113,23 +124,34 @@ function getConsoleLogReplacer() {
     umdFiles.sort((a: { name: string }, b: { name: string }) => {
       const aPoints = a.name.endsWith('.min.js') ? 2 : 1
       const bPoints = b.name.endsWith('.min.js') ? 2 : 1
-
       return bPoints - aPoints
     })
 
-    const packageJsDelivrRoot = `https://cdn.jsdelivr.net/npm/${
-      scope ? `@${scope}/` : ''
-    }${packageName}@${version}`
+    const fullPackageName = `${scope ? `@${scope}/` : ''}${packageName}`
+    const packageJsDelivrRoot = `https://cdn.jsdelivr.net/npm/${fullPackageName}@${version}`
 
     const umdFile = umdFiles[0]
     if (umdFile) {
       return packageJsDelivrRoot + umdFile.name
     }
 
-    const entrypointsResponse = await fetch(versionMetadata.links.entrypoints)
-    const entrypointsData = await entrypointsResponse.json()
+    if (versionMetadata.links?.entrypoints) {
+      const entrypointsResponse = await fetch(versionMetadata.links.entrypoints)
+      const entrypointsData = await entrypointsResponse.json()
 
-    return packageJsDelivrRoot + entrypointsData.entrypoints.js.file
+      if (entrypointsData.entrypoints.js?.file) {
+        return packageJsDelivrRoot + entrypointsData.entrypoints.js.file
+      }
+    }
+
+    const defaultFile = packageJsDelivrRoot + versionMetadata.default
+    const defaultScriptContent = await this.loadScriptFromUrl(defaultFile)
+    if (defaultScriptContent.includes('import')) {
+      // it's ESM, use ESM loader
+      return `esm:${fullPackageName}:${packageJsDelivrRoot}/+esm`
+    }
+
+    return defaultFile
   }
 
   private async loadPackageMetadata(
@@ -162,12 +184,25 @@ function getConsoleLogReplacer() {
       console.log('Found cached script:', url)
       return cached
     }
-    const response = await fetch(url)
-    if (response.status !== 200) {
-      throw new Error(`Failed to load script from URL: ${url}`)
+
+    let code: string
+    if (url.startsWith('esm:')) {
+      const packageUrlSpec = url.substring('esm:'.length)
+      const fullPackageName = packageUrlSpec.slice(
+        0,
+        packageUrlSpec.indexOf(':'),
+      )
+      const packageUrl = packageUrlSpec.slice(fullPackageName.length + 1)
+      code = `dynamicLibraries["${fullPackageName}"] = import("${packageUrl}");`
+    } else {
+      const response = await fetch(url)
+      if (response.status !== 200) {
+        throw new Error(`Failed to load script from URL: ${url}`)
+      }
+      const text = await response.text()
+      code = text?.trim()
     }
-    const text = await response.text()
-    const code = text?.trim()
+
     if (!code) {
       throw new Error(`Empty script loaded from URL: ${url}`)
     }

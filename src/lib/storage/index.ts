@@ -10,6 +10,7 @@ const collectionStores: Record<string, StorageAPI> = {}
 let searchDBStore: StorageAPI | undefined = undefined
 let metadataStore: StorageAPI | undefined = undefined
 let codeCacheStore: StorageAPI | undefined = undefined
+let automergeStore: StorageAPI | undefined = undefined
 
 export { getLocalCollectionNames, deleteCollectionName }
 
@@ -62,4 +63,12 @@ export async function getCodeCacheStore(): Promise<StorageAPI> {
   }
 
   return codeCacheStore
+}
+
+export async function getAutomergeStore(): Promise<StorageAPI> {
+  if (!automergeStore) {
+    automergeStore = await UnifiedStorage.create('automerge', 'store')
+  }
+
+  return automergeStore
 }

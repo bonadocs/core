@@ -1,4 +1,5 @@
-﻿import { Interface } from 'ethers'
+﻿import { DocHandle } from '@automerge/automerge-repo'
+import { Interface } from 'ethers'
 
 import { EventEmitter, EventListener } from '../../events'
 import {
@@ -72,112 +73,115 @@ import {
 
 export function registerDataUpdateListeners(
   eventEmitter: EventEmitter,
-  data: CollectionData,
+  handle: DocHandle<CollectionData>,
 ) {
-  eventEmitter.on('collection:rename', new RenameCollectionEventListener(data))
+  eventEmitter.on(
+    'collection:rename',
+    new RenameCollectionEventListener(handle),
+  )
   eventEmitter.on(
     'collection:update-description',
-    new UpdateCollectionDescriptionEventListener(data),
+    new UpdateCollectionDescriptionEventListener(handle),
   )
   eventEmitter.on(
     'collection:update-string',
-    new UpdateCollectionStringEventListener(data),
+    new UpdateCollectionStringEventListener(handle),
   )
   eventEmitter.on(
     'collection:delete-string',
-    new DeleteCollectionStringEventListener(data),
+    new DeleteCollectionStringEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-link',
-    new AddCollectionLinkEventListener(data),
+    new AddCollectionLinkEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-link',
-    new RemoveCollectionLinkEventListener(data),
+    new RemoveCollectionLinkEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-contract-interface',
-    new AddCollectionContractInterfaceEventListener(data),
+    new AddCollectionContractInterfaceEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-contract-interface',
-    new RemoveCollectionContractInterfaceEventListener(data),
+    new RemoveCollectionContractInterfaceEventListener(handle),
   )
   eventEmitter.on(
     'collection:rename-contract-interface',
-    new RenameCollectionContractInterfaceEventListener(data),
+    new RenameCollectionContractInterfaceEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-contract',
-    new AddCollectionContractEventListener(data),
+    new AddCollectionContractEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-contract',
-    new RemoveCollectionContractEventListener(data),
+    new RemoveCollectionContractEventListener(handle),
   )
   eventEmitter.on(
     'collection:rename-contract',
-    new RenameCollectionContractEventListener(data),
+    new RenameCollectionContractEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-contract-instance',
-    new AddCollectionContractInstanceEventListener(data),
+    new AddCollectionContractInstanceEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-contract-instance',
-    new RemoveCollectionContractInstanceEventListener(data),
+    new RemoveCollectionContractInstanceEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-variable',
-    new AddCollectionVariableEventListener(data),
+    new AddCollectionVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:rename-variable',
-    new RenameCollectionVariableEventListener(data),
+    new RenameCollectionVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-variable',
-    new RemoveCollectionVariableEventListener(data),
+    new RemoveCollectionVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-workflow',
-    new AddCollectionWorkflowEventListener(data),
+    new AddCollectionWorkflowEventListener(handle),
   )
   eventEmitter.on(
     'collection:rename-workflow',
-    new RenameCollectionWorkflowEventListener(data),
+    new RenameCollectionWorkflowEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-workflow',
-    new RemoveCollectionWorkflowEventListener(data),
+    new RemoveCollectionWorkflowEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-workflow-variable',
-    new AddCollectionWorkflowVariableEventListener(data),
+    new AddCollectionWorkflowVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:rename-workflow-variable',
-    new RenameCollectionWorkflowVariableEventListener(data),
+    new RenameCollectionWorkflowVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-workflow-variable',
-    new RemoveCollectionWorkflowVariableEventListener(data),
+    new RemoveCollectionWorkflowVariableEventListener(handle),
   )
   eventEmitter.on(
     'collection:add-workflow-function',
-    new AddCollectionWorkflowFunctionEventListener(data),
+    new AddCollectionWorkflowFunctionEventListener(handle),
   )
   eventEmitter.on(
     'collection:remove-workflow-function',
-    new RemoveCollectionWorkflowFunctionEventListener(data),
+    new RemoveCollectionWorkflowFunctionEventListener(handle),
   )
   eventEmitter.on(
     'collection:set-workflow-code',
-    new SetWorkflowCodeEventListener(data),
+    new SetWorkflowCodeEventListener(handle),
   )
   eventEmitter.on(
     'collection:delete-workflow-code',
-    new DeleteWorkflowCodeEventListener(data),
+    new DeleteWorkflowCodeEventListener(handle),
   )
 }
 
@@ -186,19 +190,23 @@ class UpdateCollectionStringEventListener
     EventListener<'collection:update-string', UpdateCollectionStringEventData>
 {
   private previousValue: string | undefined
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: UpdateCollectionStringEvent) {
-    this.previousValue = this.collectionData.strings[event.data.key]
-    this.collectionData.strings[event.data.key] = event.data.value
+  async process(event: UpdateCollectionStringEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      this.previousValue = collectionData.strings[event.data.key]
+      collectionData.strings[event.data.key] = event.data.value
+    })
   }
 
-  undo(event: UpdateCollectionStringEvent) {
-    if (this.previousValue === undefined) {
-      delete this.collectionData.strings[event.data.key]
-    } else {
-      this.collectionData.strings[event.data.key] = this.previousValue
-    }
+  async undo(event: UpdateCollectionStringEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousValue === undefined) {
+        delete collectionData.strings[event.data.key]
+      } else {
+        collectionData.strings[event.data.key] = this.previousValue
+      }
+    })
   }
 }
 
@@ -207,17 +215,20 @@ class DeleteCollectionStringEventListener
     EventListener<'collection:delete-string', DeleteCollectionStringEventData>
 {
   private previousValue: string | undefined
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: DeleteCollectionStringEvent) {
-    this.previousValue = this.collectionData.strings[event.data.key]
-    delete this.collectionData.strings[event.data.key]
+  async process(event: DeleteCollectionStringEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      this.previousValue = collectionData.strings[event.data.key]
+      delete collectionData.strings[event.data.key]
+    })
   }
-
-  undo(event: DeleteCollectionStringEvent) {
-    if (this.previousValue !== undefined) {
-      this.collectionData.strings[event.data.key] = this.previousValue
-    }
+  async undo(event: DeleteCollectionStringEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousValue !== undefined) {
+        collectionData.strings[event.data.key] = this.previousValue
+      }
+    })
   }
 }
 
@@ -228,61 +239,67 @@ class AddCollectionContractInterfaceEventListener
       AddCollectionContractInterfaceEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionContractInterfaceEvent) {
-    if (
-      this.collectionData.contractInterfaces.find(
+  async process(event: AddCollectionContractInterfaceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (
+        collectionData.contractInterfaces.find(
+          (contractInterface) =>
+            contractInterface.hash === event.data.contractInterface.hash,
+        )
+      ) {
+        return
+      }
+
+      const validationResult = validateContractInterface(
+        event.data.contractInterface,
+      )
+      if (!validationResult.status) {
+        throw new Error(validationResult.errors.join('\n'))
+      }
+      collectionData.contractInterfaces.push(event.data.contractInterface)
+    })
+  }
+  async undo(event: AddCollectionContractInterfaceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.contractInterfaces.findIndex(
         (contractInterface) =>
           contractInterface.hash === event.data.contractInterface.hash,
       )
-    ) {
-      return
-    }
-
-    const validationResult = validateContractInterface(
-      event.data.contractInterface,
-    )
-    if (!validationResult.status) {
-      throw new Error(validationResult.errors.join('\n'))
-    }
-    this.collectionData.contractInterfaces.push(event.data.contractInterface)
-  }
-
-  undo(event: AddCollectionContractInterfaceEvent) {
-    const index = this.collectionData.contractInterfaces.findIndex(
-      (contractInterface) =>
-        contractInterface.hash === event.data.contractInterface.hash,
-    )
-    if (index >= 0) {
-      this.collectionData.contractInterfaces.splice(index, 1)
-    }
+      if (index >= 0) {
+        collectionData.contractInterfaces.splice(index, 1)
+      }
+    })
   }
 }
 
 class AddCollectionLinkEventListener
   implements EventListener<'collection:add-link', AddCollectionLinkEventData>
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionLinkEvent) {
-    const index = this.collectionData.links.findIndex(
-      (link) => link.url === event.data.link.url,
-    )
-    if (index >= 0) {
-      this.collectionData.links[index] = event.data.link
-    } else {
-      this.collectionData.links.push(event.data.link)
-    }
+  async process(event: AddCollectionLinkEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.links.findIndex(
+        (link) => link.url === event.data.link.url,
+      )
+      if (index >= 0) {
+        collectionData.links[index] = event.data.link
+      } else {
+        collectionData.links.push(event.data.link)
+      }
+    })
   }
-
-  undo(event: AddCollectionLinkEvent) {
-    const index = this.collectionData.links.findIndex(
-      (link) => link.url === event.data.link.url,
-    )
-    if (index >= 0) {
-      this.collectionData.links.splice(index, 1)
-    }
+  async undo(event: AddCollectionLinkEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.links.findIndex(
+        (link) => link.url === event.data.link.url,
+      )
+      if (index >= 0) {
+        collectionData.links.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -295,26 +312,27 @@ class RemoveCollectionContractInterfaceEventListener
 {
   private previousContractInterface: ContractInterface | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionContractInterfaceEvent) {
-    const index = this.collectionData.contractInterfaces.findIndex(
-      (contractInterface) =>
-        contractInterface.hash === event.data.contractInterfaceHash,
-    )
-    if (index >= 0) {
-      this.previousContractInterface =
-        this.collectionData.contractInterfaces[index]
-      this.collectionData.contractInterfaces.splice(index, 1)
-    }
-  }
-
-  undo() {
-    if (this.previousContractInterface !== undefined) {
-      this.collectionData.contractInterfaces.push(
-        this.previousContractInterface,
+  async process(event: RemoveCollectionContractInterfaceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.contractInterfaces.findIndex(
+        (contractInterface) =>
+          contractInterface.hash === event.data.contractInterfaceHash,
       )
-    }
+      if (index >= 0) {
+        this.previousContractInterface =
+          collectionData.contractInterfaces[index]
+        collectionData.contractInterfaces.splice(index, 1)
+      }
+    })
+  }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousContractInterface !== undefined) {
+        collectionData.contractInterfaces.push(this.previousContractInterface)
+      }
+    })
   }
 }
 
@@ -324,22 +342,25 @@ class RemoveCollectionLinkEventListener
 {
   private previousLink: Link | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionLinkEvent) {
-    const index = this.collectionData.links.findIndex(
-      (link) => link.url === event.data.url,
-    )
-    if (index >= 0) {
-      this.previousLink = this.collectionData.links[index]
-      this.collectionData.links.splice(index, 1)
-    }
+  async process(event: RemoveCollectionLinkEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.links.findIndex(
+        (link) => link.url === event.data.url,
+      )
+      if (index >= 0) {
+        this.previousLink = collectionData.links[index]
+        collectionData.links.splice(index, 1)
+      }
+    })
   }
-
-  undo() {
-    if (this.previousLink !== undefined) {
-      this.collectionData.links.push(this.previousLink)
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousLink !== undefined) {
+        collectionData.links.push(this.previousLink)
+      }
+    })
   }
 }
 
@@ -348,17 +369,20 @@ class RenameCollectionEventListener
 {
   private oldName: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionEvent) {
-    this.oldName = this.collectionData.name
-    this.collectionData.name = event.data.name
+  async process(event: RenameCollectionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      this.oldName = collectionData.name
+      collectionData.name = event.data.name
+    })
   }
-
-  undo() {
-    if (this.oldName !== undefined) {
-      this.collectionData.name = this.oldName
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.oldName !== undefined) {
+        collectionData.name = this.oldName
+      }
+    })
   }
 }
 
@@ -371,17 +395,20 @@ class UpdateCollectionDescriptionEventListener
 {
   private oldDescription: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: UpdateCollectionDescriptionEvent) {
-    this.oldDescription = this.collectionData.description
-    this.collectionData.description = event.data.description
+  async process(event: UpdateCollectionDescriptionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      this.oldDescription = collectionData.description
+      collectionData.description = event.data.description
+    })
   }
-
-  undo() {
-    if (this.oldDescription !== undefined) {
-      this.collectionData.description = this.oldDescription
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.oldDescription !== undefined) {
+        collectionData.description = this.oldDescription
+      }
+    })
   }
 }
 class RenameCollectionContractInterfaceEventListener
@@ -393,29 +420,32 @@ class RenameCollectionContractInterfaceEventListener
 {
   private previousName: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionContractInterfaceEvent) {
-    const contractInterface = this.collectionData.contractInterfaces.find(
-      (contractInterface) =>
-        contractInterface.hash === event.data.contractInterfaceHash,
-    )
-    if (contractInterface) {
-      this.previousName = contractInterface.name
-      contractInterface.name = event.data.name
-    }
-  }
-
-  undo(event: RenameCollectionContractInterfaceEvent) {
-    if (this.previousName !== undefined) {
-      const contractInterface = this.collectionData.contractInterfaces.find(
+  async process(event: RenameCollectionContractInterfaceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contractInterface = collectionData.contractInterfaces.find(
         (contractInterface) =>
           contractInterface.hash === event.data.contractInterfaceHash,
       )
       if (contractInterface) {
-        contractInterface.name = this.previousName
+        this.previousName = contractInterface.name
+        contractInterface.name = event.data.name
       }
-    }
+    })
+  }
+  async undo(event: RenameCollectionContractInterfaceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousName !== undefined) {
+        const contractInterface = collectionData.contractInterfaces.find(
+          (contractInterface) =>
+            contractInterface.hash === event.data.contractInterfaceHash,
+        )
+        if (contractInterface) {
+          contractInterface.name = this.previousName
+        }
+      }
+    })
   }
 }
 
@@ -423,27 +453,30 @@ class AddCollectionContractEventListener
   implements
     EventListener<'collection:add-contract', AddCollectionContractEventData>
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionContractEvent) {
-    if (
-      this.collectionData.contracts.find(
+  async process(event: AddCollectionContractEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (
+        collectionData.contracts.find(
+          (contract) => contract.id === event.data.contract.id,
+        )
+      ) {
+        return
+      }
+
+      collectionData.contracts.push(event.data.contract)
+    })
+  }
+  async undo(event: AddCollectionContractEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.contracts.findIndex(
         (contract) => contract.id === event.data.contract.id,
       )
-    ) {
-      return
-    }
-
-    this.collectionData.contracts.push(event.data.contract)
-  }
-
-  undo(event: AddCollectionContractEvent) {
-    const index = this.collectionData.contracts.findIndex(
-      (contract) => contract.id === event.data.contract.id,
-    )
-    if (index >= 0) {
-      this.collectionData.contracts.splice(index, 1)
-    }
+      if (index >= 0) {
+        collectionData.contracts.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -456,22 +489,25 @@ class RemoveCollectionContractEventListener
 {
   private previousContract: ContractDefinition | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionContractEvent) {
-    const index = this.collectionData.contracts.findIndex(
-      (contract) => contract.id === event.data.contractId,
-    )
-    if (index >= 0) {
-      this.previousContract = this.collectionData.contracts[index]
-      this.collectionData.contracts.splice(index, 1)
-    }
+  async process(event: RemoveCollectionContractEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.contracts.findIndex(
+        (contract) => contract.id === event.data.contractId,
+      )
+      if (index >= 0) {
+        this.previousContract = collectionData.contracts[index]
+        collectionData.contracts.splice(index, 1)
+      }
+    })
   }
-
-  undo() {
-    if (this.previousContract !== undefined) {
-      this.collectionData.contracts.push(this.previousContract)
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousContract !== undefined) {
+        collectionData.contracts.push(this.previousContract)
+      }
+    })
   }
 }
 
@@ -482,50 +518,53 @@ class AddCollectionContractInstanceEventListener
       AddCollectionContractInstanceEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionContractInstanceEvent) {
-    const contract = this.collectionData.contracts.find(
-      (contract) => contract.id === event.data.contractId,
-    )
+  async process(event: AddCollectionContractInstanceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contract = collectionData.contracts.find(
+        (contract) => contract.id === event.data.contractId,
+      )
 
-    if (!contract) {
-      return
-    }
+      if (!contract) {
+        return
+      }
 
-    if (
-      contract.instances.find(
+      if (
+        contract.instances.find(
+          (instance) =>
+            instance.address === event.data.address &&
+            instance.chainId === event.data.chainId,
+        )
+      ) {
+        return
+      }
+
+      contract.instances.push({
+        chainId: event.data.chainId,
+        address: event.data.address,
+      })
+    })
+  }
+  async undo(event: AddCollectionContractInstanceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contract = collectionData.contracts.find(
+        (contract) => contract.id === event.data.contractId,
+      )
+
+      if (!contract) {
+        return
+      }
+
+      const index = contract.instances.findIndex(
         (instance) =>
           instance.address === event.data.address &&
           instance.chainId === event.data.chainId,
       )
-    ) {
-      return
-    }
-
-    contract.instances.push({
-      chainId: event.data.chainId,
-      address: event.data.address,
+      if (index >= 0) {
+        contract.instances.splice(index, 1)
+      }
     })
-  }
-
-  undo(event: AddCollectionContractInstanceEvent) {
-    const contract = this.collectionData.contracts.find(
-      (contract) => contract.id === event.data.contractId,
-    )
-
-    if (!contract) {
-      return
-    }
-
-    const index = contract.instances.findIndex(
-      (instance) =>
-        instance.address === event.data.address &&
-        instance.chainId === event.data.chainId,
-    )
-    if (index >= 0) {
-      contract.instances.splice(index, 1)
-    }
   }
 }
 
@@ -538,48 +577,51 @@ class RemoveCollectionContractInstanceEventListener
 {
   private previousInstance: { chainId: number; address: string } | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionContractInstanceEvent) {
-    const contract = this.collectionData.contracts.find(
-      (contract) => contract.id === event.data.contractId,
-    )
-
-    if (!contract) {
-      return
-    }
-
-    const index = contract.instances.findIndex(
-      (instance) =>
-        instance.address === event.data.address &&
-        instance.chainId === event.data.chainId,
-    )
-    if (index >= 0) {
-      this.previousInstance = contract.instances[index]
-      contract.instances.splice(index, 1)
-    }
-
-    // remove the contract if it has no instances
-    if (contract.instances.length === 0) {
-      this.collectionData.contracts.splice(
-        this.collectionData.contracts.findIndex(
-          (contract) => contract.id === event.data.contractId,
-        ),
-        1,
+  async process(event: RemoveCollectionContractInstanceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contract = collectionData.contracts.find(
+        (contract) => contract.id === event.data.contractId,
       )
-    }
+
+      if (!contract) {
+        return
+      }
+
+      const index = contract.instances.findIndex(
+        (instance) =>
+          instance.address === event.data.address &&
+          instance.chainId === event.data.chainId,
+      )
+      if (index >= 0) {
+        this.previousInstance = contract.instances[index]
+        contract.instances.splice(index, 1)
+      }
+
+      // remove the contract if it has no instances
+      if (contract.instances.length === 0) {
+        collectionData.contracts.splice(
+          collectionData.contracts.findIndex(
+            (contract) => contract.id === event.data.contractId,
+          ),
+          1,
+        )
+      }
+    })
   }
+  async undo(event: RemoveCollectionContractInstanceEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contract = collectionData.contracts.find(
+        (contract) => contract.id === event.data.contractId,
+      )
 
-  undo(event: RemoveCollectionContractInstanceEvent) {
-    const contract = this.collectionData.contracts.find(
-      (contract) => contract.id === event.data.contractId,
-    )
+      if (!contract || !this.previousInstance) {
+        return
+      }
 
-    if (!contract || !this.previousInstance) {
-      return
-    }
-
-    contract.instances.push(this.previousInstance)
+      contract.instances.push(this.previousInstance)
+    })
   }
 }
 
@@ -592,27 +634,30 @@ class RenameCollectionContractEventListener
 {
   private previousName: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionContractEvent) {
-    const contract = this.collectionData.contracts.find(
-      (contract) => contract.id === event.data.contractId,
-    )
-    if (contract) {
-      this.previousName = contract.name
-      contract.name = event.data.name
-    }
-  }
-
-  undo(event: RenameCollectionContractEvent) {
-    if (this.previousName !== undefined) {
-      const contract = this.collectionData.contracts.find(
+  async process(event: RenameCollectionContractEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const contract = collectionData.contracts.find(
         (contract) => contract.id === event.data.contractId,
       )
       if (contract) {
-        contract.name = this.previousName
+        this.previousName = contract.name
+        contract.name = event.data.name
       }
-    }
+    })
+  }
+  async undo(event: RenameCollectionContractEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousName !== undefined) {
+        const contract = collectionData.contracts.find(
+          (contract) => contract.id === event.data.contractId,
+        )
+        if (contract) {
+          contract.name = this.previousName
+        }
+      }
+    })
   }
 }
 
@@ -620,26 +665,29 @@ class AddCollectionVariableEventListener
   implements
     EventListener<'collection:add-variable', AddCollectionVariableEventData>
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionVariableEvent) {
-    const variable = this.collectionData.variables.find(
-      (variable) => variable.name === event.data.variable.name,
-    )
-    if (variable) {
-      variable.value = event.data.variable.value
-    } else {
-      this.collectionData.variables.push(event.data.variable)
-    }
+  async process(event: AddCollectionVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const variable = collectionData.variables.find(
+        (variable) => variable.name === event.data.variable.name,
+      )
+      if (variable) {
+        variable.value = event.data.variable.value
+      } else {
+        collectionData.variables.push(event.data.variable)
+      }
+    })
   }
-
-  undo(event: AddCollectionVariableEvent) {
-    const index = this.collectionData.variables.findIndex(
-      (variable) => variable.name === event.data.variable.name,
-    )
-    if (index >= 0) {
-      this.collectionData.variables.splice(index, 1)
-    }
+  async undo(event: AddCollectionVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.variables.findIndex(
+        (variable) => variable.name === event.data.variable.name,
+      )
+      if (index >= 0) {
+        collectionData.variables.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -650,24 +698,27 @@ class RenameCollectionVariableEventListener
       RenameCollectionVariableEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionVariableEvent) {
-    const variable = this.collectionData.variables.find(
-      (variable) => variable.name === event.data.oldName,
-    )
-    if (variable) {
-      variable.name = event.data.newName
-    }
+  async process(event: RenameCollectionVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const variable = collectionData.variables.find(
+        (variable) => variable.name === event.data.oldName,
+      )
+      if (variable) {
+        variable.name = event.data.newName
+      }
+    })
   }
-
-  undo(event: RenameCollectionVariableEvent) {
-    const variable = this.collectionData.variables.find(
-      (variable) => variable.name === event.data.newName,
-    )
-    if (variable) {
-      variable.name = event.data.oldName
-    }
+  async undo(event: RenameCollectionVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const variable = collectionData.variables.find(
+        (variable) => variable.name === event.data.newName,
+      )
+      if (variable) {
+        variable.name = event.data.oldName
+      }
+    })
   }
 }
 
@@ -680,22 +731,25 @@ class RemoveCollectionVariableEventListener
 {
   private previousVariable: VariableDefinition | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionVariableEvent) {
-    const index = this.collectionData.variables.findIndex(
-      (variable) => variable.name === event.data.name,
-    )
-    if (index >= 0) {
-      this.previousVariable = this.collectionData.variables[index]
-      this.collectionData.variables.splice(index, 1)
-    }
+  async process(event: RemoveCollectionVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.variables.findIndex(
+        (variable) => variable.name === event.data.name,
+      )
+      if (index >= 0) {
+        this.previousVariable = collectionData.variables[index]
+        collectionData.variables.splice(index, 1)
+      }
+    })
   }
-
-  undo() {
-    if (this.previousVariable !== undefined) {
-      this.collectionData.variables.push(this.previousVariable)
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousVariable !== undefined) {
+        collectionData.variables.push(this.previousVariable)
+      }
+    })
   }
 }
 
@@ -703,27 +757,30 @@ class AddCollectionWorkflowEventListener
   implements
     EventListener<'collection:add-workflow', AddCollectionWorkflowEventData>
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionWorkflowEvent) {
-    if (
-      this.collectionData.workflows.find(
+  async process(event: AddCollectionWorkflowEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (
+        collectionData.workflows.find(
+          (workflow) => workflow.id === event.data.workflow.id,
+        )
+      ) {
+        return
+      }
+
+      collectionData.workflows.push(event.data.workflow)
+    })
+  }
+  async undo(event: AddCollectionWorkflowEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.workflows.findIndex(
         (workflow) => workflow.id === event.data.workflow.id,
       )
-    ) {
-      return
-    }
-
-    this.collectionData.workflows.push(event.data.workflow)
-  }
-
-  undo(event: AddCollectionWorkflowEvent) {
-    const index = this.collectionData.workflows.findIndex(
-      (workflow) => workflow.id === event.data.workflow.id,
-    )
-    if (index >= 0) {
-      this.collectionData.workflows.splice(index, 1)
-    }
+      if (index >= 0) {
+        collectionData.workflows.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -736,25 +793,28 @@ class RenameCollectionWorkflowEventListener
 {
   private previousName: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionWorkflowEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (workflow) {
-      this.previousName = workflow.name
-      workflow.name = event.data.name
-    }
+  async process(event: RenameCollectionWorkflowEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (workflow) {
+        this.previousName = workflow.name
+        workflow.name = event.data.name
+      }
+    })
   }
-
-  undo(event: RenameCollectionWorkflowEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (workflow && this.previousName) {
-      workflow.name = this.previousName
-    }
+  async undo(event: RenameCollectionWorkflowEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (workflow && this.previousName) {
+        workflow.name = this.previousName
+      }
+    })
   }
 }
 
@@ -767,22 +827,25 @@ class RemoveCollectionWorkflowEventListener
 {
   private previousWorkflow: WorkflowDefinition | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionWorkflowEvent) {
-    const index = this.collectionData.workflows.findIndex(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (index >= 0) {
-      this.previousWorkflow = this.collectionData.workflows[index]
-      this.collectionData.workflows.splice(index, 1)
-    }
+  async process(event: RemoveCollectionWorkflowEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const index = collectionData.workflows.findIndex(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (index >= 0) {
+        this.previousWorkflow = collectionData.workflows[index]
+        collectionData.workflows.splice(index, 1)
+      }
+    })
   }
-
-  undo() {
-    if (this.previousWorkflow !== undefined) {
-      this.collectionData.workflows.push(this.previousWorkflow)
-    }
+  async undo() {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      if (this.previousWorkflow !== undefined) {
+        collectionData.workflows.push(this.previousWorkflow)
+      }
+    })
   }
 }
 
@@ -793,41 +856,44 @@ class AddCollectionWorkflowVariableEventListener
       AddCollectionWorkflowVariableEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: AddCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
+  async process(event: AddCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
 
-    if (!workflow) {
-      return
-    }
+      if (!workflow) {
+        return
+      }
 
-    const variable = workflow.variables.find(
-      (variable) => variable.name === event.data.variable.name,
-    )
-    if (variable) {
-      variable.value = event.data.variable.value
-    } else {
-      workflow.variables.push(event.data.variable)
-    }
+      const variable = workflow.variables.find(
+        (variable) => variable.name === event.data.variable.name,
+      )
+      if (variable) {
+        variable.value = event.data.variable.value
+      } else {
+        workflow.variables.push(event.data.variable)
+      }
+    })
   }
+  async undo(event: AddCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
 
-  undo(event: AddCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
-
-    const index = workflow.variables.findIndex(
-      (variable) => variable.name === event.data.variable.name,
-    )
-    if (index >= 0) {
-      workflow.variables.splice(index, 1)
-    }
+      const index = workflow.variables.findIndex(
+        (variable) => variable.name === event.data.variable.name,
+      )
+      if (index >= 0) {
+        workflow.variables.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -838,36 +904,39 @@ class RenameCollectionWorkflowVariableEventListener
       RenameCollectionWorkflowVariableEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RenameCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (workflow) {
+  async process(event: RenameCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (workflow) {
+        const variable = workflow.variables.find(
+          (variable) => variable.name === event.data.oldName,
+        )
+        if (variable) {
+          variable.name = event.data.newName
+        }
+      }
+    })
+  }
+  async undo(event: RenameCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
+
       const variable = workflow.variables.find(
-        (variable) => variable.name === event.data.oldName,
+        (variable) => variable.name === event.data.newName,
       )
       if (variable) {
-        variable.name = event.data.newName
+        variable.name = event.data.oldName
       }
-    }
-  }
-
-  undo(event: RenameCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
-
-    const variable = workflow.variables.find(
-      (variable) => variable.name === event.data.newName,
-    )
-    if (variable) {
-      variable.name = event.data.oldName
-    }
+    })
   }
 }
 
@@ -880,34 +949,37 @@ class RemoveCollectionWorkflowVariableEventListener
 {
   private previousVariable: VariableDefinition | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
+  async process(event: RemoveCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
 
-    const index = workflow.variables.findIndex(
-      (variable) => variable.name === event.data.name,
-    )
-    if (index >= 0) {
-      this.previousVariable = workflow.variables[index]
-      workflow.variables.splice(index, 1)
-    }
+      const index = workflow.variables.findIndex(
+        (variable) => variable.name === event.data.name,
+      )
+      if (index >= 0) {
+        this.previousVariable = workflow.variables[index]
+        workflow.variables.splice(index, 1)
+      }
+    })
   }
+  async undo(event: RemoveCollectionWorkflowVariableEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow || !this.previousVariable) {
+        return
+      }
 
-  undo(event: RemoveCollectionWorkflowVariableEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow || !this.previousVariable) {
-      return
-    }
-
-    workflow.variables.push(this.previousVariable)
+      workflow.variables.push(this.previousVariable)
+    })
   }
 }
 
@@ -919,63 +991,72 @@ class AddCollectionWorkflowFunctionEventListener
     >
 {
   private interfaces: Map<string, Interface>
-  constructor(private readonly collectionData: CollectionData) {
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {
     this.interfaces = new Map()
   }
 
-  process(event: AddCollectionWorkflowFunctionEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
+  async process(event: AddCollectionWorkflowFunctionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
 
-    if (!workflow.execution) {
-      workflow.execution = []
-    }
+      if (!workflow.execution) {
+        workflow.execution = []
+      }
 
-    if (
-      workflow.execution.length > 0 &&
-      typeof workflow.execution[0] !== 'string'
-    ) {
-      return
-    }
+      if (
+        workflow.execution.length > 0 &&
+        typeof workflow.execution[0] !== 'string'
+      ) {
+        return
+      }
 
-    const execution = workflow.execution as string[]
-    this.validateWorkflowFunctions([...execution, event.data.functionKey])
-    execution.push(event.data.functionKey)
+      const execution = workflow.execution as string[]
+      this.validateWorkflowFunctions(collectionData, [
+        ...execution,
+        event.data.functionKey,
+      ])
+      execution.push(event.data.functionKey)
+    })
+  }
+  async undo(event: AddCollectionWorkflowFunctionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
+
+      const index = workflow.execution.findIndex(
+        (functionKey) => functionKey === event.data.functionKey,
+      )
+      if (index >= 0) {
+        workflow.execution.splice(index, 1)
+      }
+    })
   }
 
-  undo(event: AddCollectionWorkflowFunctionEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
-
-    const index = workflow.execution.findIndex(
-      (functionKey) => functionKey === event.data.functionKey,
-    )
-    if (index >= 0) {
-      workflow.execution.splice(index, 1)
-    }
-  }
-
-  private validateWorkflowFunctions(functions: string[]) {
+  private validateWorkflowFunctions(
+    collectionData: Readonly<CollectionData>,
+    functions: string[],
+  ) {
     let activeNetworks: Set<number> | undefined
 
     for (const f of functions) {
       const contractId = f.split('.')[0]
-      const contract = this.collectionData.contracts.find(
+      const contract = collectionData.contracts.find(
         (contract) => contract.id === contractId,
       )
       if (!contract) {
         throw new Error(`Contract '${contractId}' not found`)
       }
 
-      const iface = this.getInterface(contract.interfaceHash)
+      const iface = this.getInterface(collectionData, contract.interfaceHash)
       if (!iface) {
         throw new Error(
           `Contract interface '${contract.interfaceHash}' not found`,
@@ -994,12 +1075,12 @@ class AddCollectionWorkflowFunctionEventListener
     }
   }
 
-  private getInterface(hash: string) {
+  private getInterface(collectionData: Readonly<CollectionData>, hash: string) {
     if (this.interfaces.has(hash)) {
       return this.interfaces.get(hash)!
     }
 
-    const contractInterface = this.collectionData.contractInterfaces.find(
+    const contractInterface = collectionData.contractInterfaces.find(
       (iface) => iface.hash === hash,
     )
 
@@ -1021,35 +1102,38 @@ class RemoveCollectionWorkflowFunctionEventListener
 {
   private previousFunctionKey: string | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: RemoveCollectionWorkflowFunctionEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
+  async process(event: RemoveCollectionWorkflowFunctionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow) {
+        return
+      }
 
-    const index = workflow.execution.findIndex(
-      (functionKey) => functionKey === event.data.functionKey,
-    )
-    if (index >= 0) {
-      this.previousFunctionKey = workflow.execution[index] as string
-      workflow.execution.splice(index, 1)
-    }
+      const index = workflow.execution.findIndex(
+        (functionKey) => functionKey === event.data.functionKey,
+      )
+      if (index >= 0) {
+        this.previousFunctionKey = workflow.execution[index] as string
+        workflow.execution.splice(index, 1)
+      }
+    })
   }
+  async undo(event: RemoveCollectionWorkflowFunctionEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow || !this.previousFunctionKey) {
+        return
+      }
 
-  undo(event: RemoveCollectionWorkflowFunctionEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow || !this.previousFunctionKey) {
-      return
-    }
-
-    const execution = workflow.execution as string[]
-    execution.push(this.previousFunctionKey)
+      const execution = workflow.execution as string[]
+      execution.push(this.previousFunctionKey)
+    })
   }
 }
 
@@ -1060,56 +1144,59 @@ class SetWorkflowCodeEventListener
       SetCollectionWorkflowCodeEventData
     >
 {
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: SetCollectionWorkflowCodeEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
-
-    if (!workflow.execution) {
-      workflow.execution = []
-    }
-
-    if (workflow.execution.some((e) => typeof e === 'string')) {
-      throw new Error(
-        'Cannot set code for non-snippet workflow. Remove all functions first.',
+  async process(event: SetCollectionWorkflowCodeEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
       )
-    }
+      if (!workflow) {
+        return
+      }
 
-    const execution = workflow.execution as CodeSnippet[]
-    const applicableExecution = execution.find(
-      (e) => e.language === event.data.language,
-    )
+      if (!workflow.execution) {
+        workflow.execution = []
+      }
 
-    if (applicableExecution) {
-      applicableExecution.code = event.data.code
-    } else {
-      execution.push({
-        code: event.data.code,
-        language: event.data.language,
-      })
-    }
+      if (workflow.execution.some((e) => typeof e === 'string')) {
+        throw new Error(
+          'Cannot set code for non-snippet workflow. Remove all functions first.',
+        )
+      }
+
+      const execution = workflow.execution as CodeSnippet[]
+      const applicableExecution = execution.find(
+        (e) => e.language === event.data.language,
+      )
+
+      if (applicableExecution) {
+        applicableExecution.code = event.data.code
+      } else {
+        execution.push({
+          code: event.data.code,
+          language: event.data.language,
+        })
+      }
+    })
   }
+  async undo(event: SetCollectionWorkflowCodeEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow?.execution) {
+        return
+      }
 
-  undo(event: SetCollectionWorkflowCodeEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow?.execution) {
-      return
-    }
-
-    const execution = workflow.execution as CodeSnippet[]
-    const index = execution.findIndex(
-      (snippet) => snippet.language === event.data.language,
-    )
-    if (index >= 0) {
-      execution.splice(index, 1)
-    }
+      const execution = workflow.execution as CodeSnippet[]
+      const index = execution.findIndex(
+        (snippet) => snippet.language === event.data.language,
+      )
+      if (index >= 0) {
+        execution.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -1122,44 +1209,47 @@ class DeleteWorkflowCodeEventListener
 {
   private previousSnippet: CodeSnippet | undefined
 
-  constructor(private readonly collectionData: CollectionData) {}
+  constructor(private readonly dataHandle: DocHandle<CollectionData>) {}
 
-  process(event: DeleteCollectionWorkflowCodeEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow) {
-      return
-    }
-
-    const isSnippetWorkflow =
-      !workflow.execution.length || typeof workflow.execution[0] === 'object'
-
-    if (!isSnippetWorkflow) {
-      throw new Error(
-        'Cannot delete code for non-snippet workflow. Remove all functions first.',
+  async process(event: DeleteCollectionWorkflowCodeEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
       )
-    }
+      if (!workflow) {
+        return
+      }
 
-    const execution = workflow.execution as CodeSnippet[]
-    const index = execution.findIndex(
-      (snippet) => snippet.language === event.data.language,
-    )
-    if (index >= 0) {
-      this.previousSnippet = execution[index]
-      execution.splice(index, 1)
-    }
+      const isSnippetWorkflow =
+        !workflow.execution.length || typeof workflow.execution[0] === 'object'
+
+      if (!isSnippetWorkflow) {
+        throw new Error(
+          'Cannot delete code for non-snippet workflow. Remove all functions first.',
+        )
+      }
+
+      const execution = workflow.execution as CodeSnippet[]
+      const index = execution.findIndex(
+        (snippet) => snippet.language === event.data.language,
+      )
+      if (index >= 0) {
+        this.previousSnippet = execution[index]
+        execution.splice(index, 1)
+      }
+    })
   }
+  async undo(event: DeleteCollectionWorkflowCodeEvent) {
+    this.dataHandle.change((collectionData: CollectionData) => {
+      const workflow = collectionData.workflows.find(
+        (workflow) => workflow.id === event.data.workflowId,
+      )
+      if (!workflow || !this.previousSnippet) {
+        return
+      }
 
-  undo(event: DeleteCollectionWorkflowCodeEvent) {
-    const workflow = this.collectionData.workflows.find(
-      (workflow) => workflow.id === event.data.workflowId,
-    )
-    if (!workflow || !this.previousSnippet) {
-      return
-    }
-
-    const execution = workflow.execution as CodeSnippet[]
-    execution.push(this.previousSnippet)
+      const execution = workflow.execution as CodeSnippet[]
+      execution.push(this.previousSnippet)
+    })
   }
 }

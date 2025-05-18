@@ -5,7 +5,11 @@
   ValueManagerView,
 } from '../'
 import { saveToIPFS } from '../../../ipfs'
-import { CodeSnippetLanguage, WorkflowDefinition } from '../../spec'
+import {
+  CodeSnippet,
+  CodeSnippetLanguage,
+  WorkflowDefinition,
+} from '../../spec'
 import { generateRandomId } from '../../util'
 import {
   AddCollectionWorkflowEvent,
@@ -37,7 +41,7 @@ export class WorkflowManagerView {
   #onWorkflowCodeSet: CallbackListener
   #onWorkflowCodeDeleted: CallbackListener
 
-  constructor(
+  private constructor(
     valueManagerView: ValueManagerView,
     dataManager: CollectionDataManager,
   ) {
@@ -45,8 +49,16 @@ export class WorkflowManagerView {
     this.#dataManager = dataManager
     this.#workflowDefinitions = new Map()
     this.#workflowVariables = new Map()
-    this.setupEventListeners()
-    this.resetInternalDataStructures()
+  }
+
+  static async create(
+    valueManagerView: ValueManagerView,
+    dataManager: CollectionDataManager,
+  ) {
+    const view = new WorkflowManagerView(valueManagerView, dataManager)
+    view.setupEventListeners()
+    await view.resetInternalDataStructures()
+    return view
   }
 
   getWorkflowVariable(workflowId: string, variableName: string) {
@@ -214,18 +226,18 @@ export class WorkflowManagerView {
   }
 
   async addWorkflowFunction(workflowId: string, functionKey: string) {
+    const contractManager = await this.#dataManager.getContractManagerView()
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [contractId, _, fragmentKey] = functionKey.split('.')
-    const contract =
-      this.#dataManager.contractManagerView.getContract(contractId)
+    const contract = contractManager.getContract(contractId)
     if (!contract) {
       throw new Error(`Contract '${contractId}' not found`)
     }
 
-    const contractInterface =
-      this.#dataManager.contractManagerView.getInterface(
-        contract?.interfaceHash,
-      )
+    const contractInterface = contractManager.getInterface(
+      contract?.interfaceHash,
+    )
 
     if (!contractInterface) {
       throw new Error(
@@ -338,11 +350,12 @@ export class WorkflowManagerView {
     this.setupCallbackEventListeners()
   }
 
-  private resetInternalDataStructures() {
+  private async resetInternalDataStructures() {
     this.#workflowVariables.clear()
     this.#workflowDefinitions.clear()
 
-    for (const workflow of this.#dataManager.data.workflows) {
+    const data = await this.#dataManager.getData()
+    for (const workflow of data.workflows) {
       this.#workflowDefinitions.set(workflow.id, workflow)
       const workflowVariables = new Map<string, string>()
       this.#workflowVariables.set(workflow.id, workflowVariables)
@@ -364,8 +377,8 @@ export class WorkflowManagerView {
           map.set(event.data.variable.name, event.data.variable.value)
         }
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:remove-workflow-variable', {
@@ -377,8 +390,8 @@ export class WorkflowManagerView {
           map.delete(event.data.name)
         }
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:rename-workflow-variable', {
@@ -394,24 +407,69 @@ export class WorkflowManagerView {
           }
         }
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:add-workflow', {
       process(event: AddCollectionWorkflowEvent): void | Promise<void> {
         workflowDefinitions.set(event.data.workflow.id, event.data.workflow)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:remove-workflow', {
       process(event: RemoveCollectionWorkflowEvent): void | Promise<void> {
         workflowDefinitions.delete(event.data.workflowId)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
+      },
+    })
+    this.#dataManager.on('collection:set-workflow-code', {
+      process(event: SetCollectionWorkflowCodeEvent): void | Promise<void> {
+        const workflow = workflowDefinitions.get(event.data.workflowId)
+        if (!workflow?.execution || typeof workflow.execution[0] === 'string') {
+          return
+        }
+
+        const execution = workflow.execution as CodeSnippet[]
+        const snippet = execution.find(
+          (x): x is CodeSnippet =>
+            (x as CodeSnippet).language === event.data.language,
+        )
+        if (snippet) {
+          snippet.code = event.data.code
+        } else {
+          execution.push({
+            language: event.data.language,
+            code: event.data.code,
+          })
+        }
+      },
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
+      },
+    })
+    this.#dataManager.on('collection:delete-workflow-code', {
+      process(event: DeleteCollectionWorkflowCodeEvent): void | Promise<void> {
+        const workflow = workflowDefinitions.get(event.data.workflowId)
+        if (!workflow?.execution || typeof workflow.execution[0] === 'string') {
+          return
+        }
+
+        const execution = workflow.execution as CodeSnippet[]
+        const index = execution.findIndex(
+          (x): x is CodeSnippet =>
+            (x as CodeSnippet).language === event.data.language,
+        )
+        if (index >= 0) {
+          execution.splice(index, 1)
+        }
+      },
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
   }

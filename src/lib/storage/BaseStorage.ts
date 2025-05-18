@@ -27,4 +27,5 @@ export abstract class BaseStorage implements StorageAPI {
   abstract transaction(
     func: (store: StorageAPI) => Promise<void>,
   ): Promise<void>
+  abstract destroy(): Promise<void>
 }

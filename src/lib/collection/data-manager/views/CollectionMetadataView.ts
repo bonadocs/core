@@ -21,16 +21,19 @@ export class CollectionMetadataView {
     this.setupEventListeners()
   }
 
-  get name() {
-    return this.#dataManager.data.name
+  async getName() {
+    const data = await this.#dataManager.getData()
+    return data.name
   }
 
-  get description() {
-    return this.#dataManager.data.description
+  async getDescription() {
+    const data = await this.#dataManager.getData()
+    return data.description
   }
 
-  get links(): readonly Link[] {
-    return this.#dataManager.data.links
+  async getLinks(): Promise<readonly Link[]> {
+    const data = await this.#dataManager.getData()
+    return data.links
   }
 
   async rename(name: string) {

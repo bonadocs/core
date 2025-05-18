@@ -1,8 +1,9 @@
-﻿import { FunctionFragment, sha256, toUtf8Bytes } from 'ethers'
+﻿import { DocHandle, DocumentId, Repo } from '@automerge/automerge-repo'
+import { FunctionFragment, sha256, toUtf8Bytes } from 'ethers'
 
+import { getAutomergeRepo } from '../../automerge'
 import { BonadocsError } from '../../errors'
 import { saveToIPFS } from '../../ipfs'
-import { getCollectionStore } from '../../storage'
 import { jsonUtils } from '../../util'
 import { Event, EventEmitter, EventListener, EventType } from '../events'
 import { CollectionData, validateCollection } from '../spec'
@@ -17,9 +18,10 @@ import {
   ValueManagerView,
 } from './views'
 import { WorkflowManagerView } from './views/WorkflowManagerView'
+
 export class CollectionDataManager {
-  readonly #data: CollectionData
   readonly #eventEmitter: EventEmitter
+  readonly #dataHandle!: DocHandle<CollectionData>
   #environmentManagerView: CollectionEnvironmentManagerView | undefined
   #metadataView: CollectionMetadataView | undefined
   #contractManagerView: ContractManagerView | undefined
@@ -29,36 +31,55 @@ export class CollectionDataManager {
   #functionFragmentViews = new Map<string, Map<string, FunctionFragmentView>>()
   #projectId?: number
   #collectionId?: number
+  #dataId!: string
 
-  constructor(data: CollectionData) {
-    this.#data = data
+  private constructor(
+    automerge: Repo,
+    dataOrId: CollectionData | string,
+    forceNewDoc: boolean,
+  ) {
     this.#eventEmitter = new EventEmitter()
-    this.setupEventListeners()
+    if (forceNewDoc) {
+      this.#dataHandle = automerge.create(dataOrId)
+    } else if (typeof dataOrId === 'string') {
+      this.#dataHandle = automerge.find(dataOrId as DocumentId)
+    } else if (dataOrId.id.trim() !== '') {
+      this.#dataHandle = automerge.find(dataOrId.id as DocumentId)
+    } else {
+      this.#dataHandle = automerge.create(dataOrId)
+    }
   }
 
-  setProjectId(projectId: number) {
-    this.#projectId = projectId
-  }
+  static async create(
+    dataOrId: CollectionData | string,
+    projectDetails?: {
+      projectId: number
+      collectionId: number
+    },
+    forceNewDoc = false,
+  ): Promise<CollectionDataManager> {
+    const automerge = projectDetails
+      ? await getAutomergeRepo(projectDetails)
+      : await getAutomergeRepo()
+    const manager = new CollectionDataManager(automerge, dataOrId, forceNewDoc)
 
-  setCollectionId(collectionId: number) {
-    this.#collectionId = collectionId
+    await manager.#dataHandle.whenReady()
+    manager.setupEventListeners()
+    await new Promise<void>((resolve) => {
+      manager.#dataHandle.change((doc: CollectionData) => {
+        doc.id = manager.#dataHandle.documentId
+        manager.#dataId = manager.#dataHandle.documentId
+        resolve()
+      })
+    })
+
+    return manager
   }
 
   async emit<TEvent extends EventType, TEventData>(
     event: Event<TEvent, TEventData>,
   ) {
     await this.#eventEmitter.emit(event)
-  }
-
-  async saveToLocal() {
-    const collectionStore = await getCollectionStore(
-      this.data.id,
-      this.data.name,
-    )
-    await collectionStore.set(
-      'data',
-      JSON.stringify(this.data, jsonUtils.replacer),
-    )
   }
 
   /**
@@ -89,20 +110,22 @@ export class CollectionDataManager {
   /**
    * Saves the collection to IPFS and returns the IPFS URI
    */
-  publishToIPFS(): Promise<string> {
-    const result = validateCollection(this.#data)
+  async publishToIPFS(): Promise<string> {
+    const data = await this.#dataHandle.doc()
+    const result = validateCollection(data)
     if (!result.status) {
       throw new BonadocsError(result)
     }
 
-    return saveToIPFS(JSON.stringify(this.#data))
+    return saveToIPFS(JSON.stringify(data))
   }
 
   /**
    * Generates a JSON snapshot of the collection data.
    */
-  getSnapshot(): string {
-    return JSON.stringify(this.#data, jsonUtils.replacer)
+  async getSnapshot(): Promise<string> {
+    const data = await this.#dataHandle.doc()
+    return JSON.stringify(data, jsonUtils.replacer)
   }
 
   on<TEvent extends EventType, TEventData>(
@@ -112,67 +135,80 @@ export class CollectionDataManager {
     this.#eventEmitter.on(type, listener)
   }
 
-  get id() {
-    return this.#data.id
+  get id(): string {
+    return this.#dataId
   }
 
   /**
-   * Exposes the collection data. This should only be used in view classes for consistency.
-   * Modifying the collection data directly will not trigger events and will break functionality.
+   * Exposes the collection data. This should only be used in view classes for
+   * consistency. Modifying the collection data directly will not trigger
+   * events and will break functionality.
    */
-  get data() {
-    return this.#data
+  async getData(): Promise<Readonly<CollectionData>> {
+    const data = await this.#dataHandle.doc()
+    if (!data) {
+      throw new Error('Collection data not found')
+    }
+    return data
   }
 
   /**
    * A hash of the snapshot of the collection data.
    */
-  get snapshotHash(): string {
-    return sha256(toUtf8Bytes(this.getSnapshot()))
+  async getSnapshotHash(): Promise<string> {
+    const snapshot = await this.getSnapshot()
+    return sha256(toUtf8Bytes(snapshot))
   }
 
-  get environmentManagerView(): CollectionEnvironmentManagerView {
+  async getEnvironmentManagerView(): Promise<CollectionEnvironmentManagerView> {
     if (!this.#environmentManagerView) {
-      this.#environmentManagerView = new CollectionEnvironmentManagerView(this)
+      this.#environmentManagerView =
+        await CollectionEnvironmentManagerView.create(this)
     }
     return this.#environmentManagerView
   }
 
-  get metadataView(): CollectionMetadataView {
+  async getMetadataView(): Promise<CollectionMetadataView> {
     if (!this.#metadataView) {
       this.#metadataView = new CollectionMetadataView(this)
     }
     return this.#metadataView
   }
 
-  get workflowManagerView(): WorkflowManagerView {
+  async getWorkflowManagerView(): Promise<WorkflowManagerView> {
     if (!this.#workflowManagerView) {
-      this.#workflowManagerView = new WorkflowManagerView(
-        this.valueManagerView,
+      this.#workflowManagerView = await WorkflowManagerView.create(
+        await this.getValueManagerView(),
         this,
       )
     }
     return this.#workflowManagerView
   }
 
-  get contractManagerView(): ContractManagerView {
+  async getContractManagerView(): Promise<ContractManagerView> {
     if (!this.#contractManagerView) {
-      this.#contractManagerView = new ContractManagerView(this)
+      this.#contractManagerView = await ContractManagerView.create(this)
     }
     return this.#contractManagerView
   }
 
-  get valueManagerView(): ValueManagerView {
+  async getValueManagerView(): Promise<ValueManagerView> {
     if (!this.#valueManagerView) {
       this.#valueManagerView = new ValueManagerView(this)
     }
     return this.#valueManagerView
   }
 
-  getContractDetailsView(contractId: string): ContractDetailsView {
+  async getContractDetailsView(
+    contractId: string,
+  ): Promise<ContractDetailsView> {
     let view = this.#contractDetailsViews.get(contractId)
     if (!view) {
-      view = new ContractDetailsView(this, this.valueManagerView, contractId)
+      view = await ContractDetailsView.create(
+        this,
+        await this.getValueManagerView(),
+        contractId,
+      )
       this.#contractDetailsViews.set(contractId, view)
     }
     return view
@@ -206,13 +242,16 @@ export class CollectionDataManager {
     contractViews.delete(fragmentKey)
   }
 
-  private createFunctionFragmentView(contractId: string, fragmentKey: string) {
-    const contractDetailsView = this.getContractDetailsView(contractId)
+  private async createFunctionFragmentView(
+    contractId: string,
+    fragmentKey: string,
+  ) {
+    const contractDetailsView = await this.getContractDetailsView(contractId)
     const fragment = contractDetailsView.getFragment(fragmentKey)
     if (fragment?.fragment instanceof FunctionFragment) {
       return FunctionFragmentView.create(
-        this.valueManagerView,
-        this.environmentManagerView,
+        await this.getValueManagerView(),
+        await this.getEnvironmentManagerView(),
         fragmentKey,
         fragment.fragment,
       )
@@ -226,24 +265,6 @@ export class CollectionDataManager {
    * @private
    */
   private setupEventListeners() {
-    registerDataUpdateListeners(this.#eventEmitter, this.#data)
-    this.setupUpdatePersistence()
-  }
-
-  /**
-   * Persists the collection data to storage on every event.
-   * Wildcard listeners are executed after the specific event listeners.
-   * @private
-   */
-  private setupUpdatePersistence() {
-    const saveToLocal = this.saveToLocal.bind(this)
-    this.#eventEmitter.on('*', {
-      process() {
-        return saveToLocal()
-      },
-      async undo() {
-        return saveToLocal()
-      },
-    })
+    registerDataUpdateListeners(this.#eventEmitter, this.#dataHandle)
   }
 }

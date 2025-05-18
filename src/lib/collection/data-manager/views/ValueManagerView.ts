@@ -19,7 +19,7 @@ export class ValueManagerView {
   }
 
   async addLibrary(language: CodeSnippetLanguage, library: string) {
-    const languageLibraries = this.getLibraries(language)
+    const languageLibraries = await this.getLibraries(language)
     languageLibraries.push(library)
 
     await this.setString(
@@ -29,14 +29,14 @@ export class ValueManagerView {
 
     // preload library asynchronously
     getCodeRunner(language)
-      .then((r) => r.loadLibrary(library))
+      .then((r) => r.cacheLibrary(library))
       .catch((e) => {
         console.error(`Failed to pre-load library "${library}"`, e)
       })
   }
 
   async removeLibrary(language: CodeSnippetLanguage, library: string) {
-    const languageLibraries = this.getLibraries(language)
+    const languageLibraries = await this.getLibraries(language)
     const index = languageLibraries.indexOf(library)
     if (index !== -1) {
       languageLibraries.splice(index, 1)
@@ -48,16 +48,17 @@ export class ValueManagerView {
     )
   }
 
-  getLibraries(language: CodeSnippetLanguage): string[] {
-    const libraries = this.getString(`libraries.${language}`)
+  async getLibraries(language: CodeSnippetLanguage): Promise<string[]> {
+    const libraries = await this.getString(`libraries.${language}`)
     if (!libraries) {
       return getDefaultLibraries(language)
     }
     return JSON.parse(libraries)
   }
 
-  getString(key: string) {
-    return this.#dataManager.data.strings[key]
+  async getString(key: string) {
+    const data = await this.#dataManager.getData()
+    return data.strings[key]
   }
 
   async setString(key: string, value: string) {

@@ -123,4 +123,4 @@ export interface CollectionData {
   workflows: WorkflowDefinition[]
 }
 
-export type CollectionDataSnapshot = string | CollectionData
+export type CollectionDataSnapshot = string | Readonly<CollectionData>

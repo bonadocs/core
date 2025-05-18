@@ -16,11 +16,16 @@ export class CollectionEnvironmentManagerView {
   // view state - managed internally for efficient data access
   readonly #variableMap: Map<string, string>
 
-  constructor(dataManager: CollectionDataManager) {
+  private constructor(dataManager: CollectionDataManager) {
     this.#dataManager = dataManager
     this.#variableMap = new Map<string, string>()
-    this.resetInternalDataStructures()
-    this.setupEventListeners()
+  }
+
+  static async create(dataManager: CollectionDataManager) {
+    const view = new CollectionEnvironmentManagerView(dataManager)
+    await view.resetInternalDataStructures()
+    view.setupEventListeners()
+    return view
   }
 
   get list() {
@@ -88,9 +93,10 @@ export class CollectionEnvironmentManagerView {
     this.setupCallbackEventListeners()
   }
 
-  private resetInternalDataStructures() {
+  private async resetInternalDataStructures() {
     this.#variableMap.clear()
-    for (const variable of this.#dataManager.data.variables) {
+    const data = await this.#dataManager.getData()
+    for (const variable of data.variables) {
       this.#variableMap.set(variable.name, variable.value)
     }
   }
@@ -103,16 +109,16 @@ export class CollectionEnvironmentManagerView {
       process(event: AddCollectionVariableEvent): void | Promise<void> {
         variableMap.set(event.data.variable.name, event.data.variable.value)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:remove-variable', {
       process(event: RemoveCollectionVariableEvent): void | Promise<void> {
         variableMap.delete(event.data.name)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:rename-variable', {
@@ -125,8 +131,8 @@ export class CollectionEnvironmentManagerView {
         variableMap.set(event.data.newName, data)
         variableMap.delete(event.data.oldName)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
   }

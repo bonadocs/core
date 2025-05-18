@@ -11,7 +11,6 @@ import {
   CollectionDataSnapshot,
   validateCollection,
 } from './spec'
-import { generateRandomId } from './util'
 
 export * from './data-manager'
 export * from './execution'
@@ -20,7 +19,7 @@ export * from './types'
 export * from './spec'
 
 export class Collection {
-  #data: CollectionData
+  #data!: CollectionData
   #manager: CollectionDataManager | undefined
 
   /**
@@ -33,9 +32,18 @@ export class Collection {
     if (!name || !description) {
       throw Error('Collection name and description are required')
     }
+  }
 
-    this.#data = {
-      id: generateRandomId(),
+  /**
+   * Create a new collection with the given name and description.
+   * @param name
+   * @param description
+   */
+  static createBlankCollection(name: string, description: string): Collection {
+    const collection = new Collection(name, description)
+    collection.#data = {
+      // the id will be set by automerge
+      id: '',
       name,
       description,
       strings: {},
@@ -45,22 +53,14 @@ export class Collection {
       contracts: [],
       workflows: [],
     }
-  }
-
-  /**
-   * Create a new collection with the given name and description.
-   * @param name
-   * @param description
-   */
-  static createBlankCollection(name: string, description: string) {
-    return new Collection(name, description)
+    return collection
   }
 
   /**
    * Loads a collection from IPFS.
    * @param uri
    */
-  static async createFromIPFS(uri: string) {
+  static async createFromIPFS(uri: string): Promise<Collection> {
     if (!uri.startsWith('ipfs://')) {
       throw Error('Invalid IPFS URI')
     }
@@ -80,23 +80,33 @@ export class Collection {
    * @param projectId
    * @param collectionId
    */
-  static async createFromBonadocsApi(projectId: number, collectionId: number) {
+  static async createFromBonadocsApi(
+    projectId: number,
+    collectionId: number,
+  ): Promise<Collection> {
     const api = getApi()
     const collectionData = await api.getCollectionData(projectId, collectionId)
     if (!collectionData?.id) {
       throw Error('Failed to load collection data from the API')
     }
 
-    // const store = await getCollectionStore(collectionData.id)
-    // const localDataSnapshot = await store.get('data')
-    const collection = this.createFromSnapshot(collectionData)
-    collection.manager.setProjectId(projectId)
-    collection.manager.setCollectionId(collectionId)
-    await collection.manager.saveToLocal()
+    const manager = await CollectionDataManager.create(collectionData.id, {
+      projectId,
+      collectionId,
+    })
+    // ensure the data is loaded
+    await manager.getData()
+
+    const collection = new Collection(
+      collectionData.name,
+      collectionData.description,
+    )
+    collection.#manager = manager
+
     return collection
   }
 
-  static async createFromProtocolRegistry(slug: string) {
+  static async createFromProtocolRegistry(slug: string): Promise<Collection> {
     if (!slug) {
       throw Error('Invalid protocol slug')
     }
@@ -109,7 +119,7 @@ export class Collection {
     return this.createFromURI(metadata.collection)
   }
 
-  static async createFromURI(uri: string) {
+  static async createFromURI(uri: string): Promise<Collection> {
     if (uri.startsWith('ipfs://')) {
       return this.createFromIPFS(uri)
     }
@@ -129,8 +139,12 @@ export class Collection {
   /**
    * Loads a collection from a JSON snapshot.
    * @param snapshot
+   * @param isLocal
    */
-  static createFromSnapshot(snapshot: CollectionDataSnapshot) {
+  static async createFromSnapshot(
+    snapshot: CollectionDataSnapshot,
+    isLocal = false,
+  ): Promise<Collection> {
     const data =
       typeof snapshot === 'string'
         ? JSON.parse(snapshot, jsonUtils.reviver)
@@ -142,24 +156,41 @@ export class Collection {
 
     const collection = new Collection(data.name, data.description)
     collection.#data = data
+
+    const manager = await CollectionDataManager.create(
+      data,
+      undefined,
+      !isLocal,
+    )
+    collection.#manager = manager
+
+    const store = await getCollectionStore(manager.id)
+    await store.set(
+      'data',
+      JSON.stringify(await manager.getData(), jsonUtils.replacer),
+    )
     return collection
   }
 
-  static async createFromLocalStore(id: string) {
+  static async createFromLocalStore(id: string): Promise<Collection> {
     const store = await getCollectionStore(id)
     const snapshot = await store.getString('data')
     if (!snapshot) {
       throw new Error(`Collection ${id} not found`)
     }
-    return this.createFromSnapshot(snapshot)
+    return this.createFromSnapshot(snapshot, true)
   }
 
   /**
    * Returns the collection data manager
    */
-  get manager(): CollectionDataManager {
+  async getManager(): Promise<CollectionDataManager> {
     if (!this.#manager) {
-      this.#manager = new CollectionDataManager(this.#data)
+      this.#manager = await CollectionDataManager.create(
+        this.#data,
+        undefined,
+        true,
+      )
     }
     return this.#manager
   }

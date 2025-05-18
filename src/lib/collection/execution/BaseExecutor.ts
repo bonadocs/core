@@ -11,7 +11,7 @@ export abstract class BaseExecutor {
     }
 
     this.supportedChains = supportedChains
-    this.#activeChainId = this.supportedChains.values().next().value
+    this.#activeChainId = this.supportedChains.values().next().value!
   }
 
   /**

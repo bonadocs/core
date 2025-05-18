@@ -127,6 +127,18 @@ export class IndexedDBStorage extends BaseStorage {
     })
   }
 
+  async destroy(): Promise<void> {
+    await this.#dbPromise
+    return new Promise((resolve, reject) => {
+      try {
+        this.#db!.deleteObjectStore(this.#storeName)
+        resolve()
+      } catch (e) {
+        reject(e)
+      }
+    })
+  }
+
   private getFullKey(key: StorageKey): StorageKey {
     return [this.dataKey, ...this.normalizeKey(key)]
   }

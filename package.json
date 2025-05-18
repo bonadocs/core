@@ -1,6 +1,6 @@
 {
   "name": "@bonadocs/core",
-  "version": "1.0.3-alpha.78",
+  "version": "1.0.3-alpha.110",
   "description": "Core library powering Bonadocs applications",
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",
@@ -35,16 +35,17 @@
     "doc:json": "typedoc src/ --exclude **/*.spec.ts --target ES6 --mode file --json build/docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
     "version": "standard-version",
-    "reset-hard": "git clean -dfx && git reset --hard && yarn",
+    "reset-hard": "git clean -dfx && git reset --hard && npm i",
     "prepare-release": "run-s reset-hard test cov:check doc:html version doc:publish",
     "prepublishOnly": "run-s build"
   },
   "engines": {
-    "node": ">=10"
+    "node": ">=20"
   },
   "dependencies": {
     "@automerge/automerge": "^2.2.8",
     "@automerge/automerge-repo": "^1.2.1",
+    "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "axios": "^1.6.2",
     "ethers": "^6.9.0"
   },

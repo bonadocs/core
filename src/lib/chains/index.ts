@@ -123,7 +123,8 @@ export const supportedChains = new Map<number, ChainConfig>([
       networkId: 137,
       imageUrl:
         'https://res.cloudinary.com/dfkuxnesz/image/upload/v1721211627/polygon-matic-logo_bjtqno.svg',
-      jsonRpcUrl: 'https://rpc.ankr.com/polygon',
+      jsonRpcUrl:
+        'https://rpc.ankr.com/polygon/829035857b52d5832a6312bcd3652d73cc0d698f6756ed66e2851c691d63e994',
       specApiConfigs: [
         {
           specApiType: 'etherscan',
@@ -174,7 +175,8 @@ export const supportedChains = new Map<number, ChainConfig>([
       networkId: 5,
       imageUrl:
         'https://res.cloudinary.com/dfkuxnesz/image/upload/v1721089362/Ethere_1_m62ob4.svg',
-      jsonRpcUrl: 'https://rpc.ankr.com/eth_goerli',
+      jsonRpcUrl:
+        'https://rpc.ankr.com/eth_goerli/829035857b52d5832a6312bcd3652d73cc0d698f6756ed66e2851c691d63e994',
       specApiConfigs: [
         {
           specApiType: 'etherscan',
@@ -225,7 +227,8 @@ export const supportedChains = new Map<number, ChainConfig>([
       networkId: 1101,
       imageUrl:
         'https://res.cloudinary.com/dfkuxnesz/image/upload/v1721211627/polygon-matic-logo_bjtqno.svg',
-      jsonRpcUrl: 'https://rpc.ankr.com/polygon_zkevm',
+      jsonRpcUrl:
+        'https://rpc.ankr.com/polygon_zkevm/829035857b52d5832a6312bcd3652d73cc0d698f6756ed66e2851c691d63e994',
       specApiConfigs: [
         {
           specApiType: 'etherscan',

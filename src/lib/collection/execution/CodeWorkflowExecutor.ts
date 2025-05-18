@@ -39,7 +39,12 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     dataManager: CollectionDataManager,
     codeWorkflowId: string,
   ): Promise<CodeWorkflowExecutor> {
-    const workflow = dataManager.workflowManagerView.getWorkflow(codeWorkflowId)
+    const workflowManager = await dataManager.getWorkflowManagerView()
+    const environmentManager = await dataManager.getEnvironmentManagerView()
+    const valueManager = await dataManager.getValueManagerView()
+    const contractManager = await dataManager.getContractManagerView()
+
+    const workflow = workflowManager.getWorkflow(codeWorkflowId)
     if (!workflow) {
       throw new Error(`Workflow not found: ${codeWorkflowId}`)
     }
@@ -55,14 +60,14 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     const config = {
       snippets,
       variables: Object.fromEntries([
-        ...dataManager.environmentManagerView.list,
+        ...environmentManager.list,
         ...workflow.variables.map((v) => [v.name, v.value]),
       ]),
     }
 
     const languages = snippets.map((s) => s.language)
     const libraries = Object.fromEntries(
-      languages.map((l) => [l, dataManager.valueManagerView.getLibraries(l)]),
+      languages.map((l) => [l, valueManager.getLibraries(l)]),
     )
 
     const runners = Object.fromEntries(
@@ -70,7 +75,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
         snippets.map(async (s) => [
           s.language,
           await getCodeRunner(s.language).then(async (r) => {
-            for (const library of libraries[s.language]) {
+            for (const library of await libraries[s.language]) {
               await r.loadLibrary(library)
             }
             await r.loadLibrary('@bonadocs/zimulatoor')
@@ -81,10 +86,10 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     )
 
     return new CodeWorkflowExecutor(
-      getActiveNetworks(dataManager),
+      await getActiveNetworks(dataManager),
       config,
       runners,
-      dataManager.contractManagerView,
+      contractManager,
     )
   }
 
@@ -198,9 +203,10 @@ export class CodeWorkflowExecutor extends BaseExecutor {
   }
 }
 
-function getActiveNetworks(dataManager: CollectionDataManager) {
+async function getActiveNetworks(dataManager: CollectionDataManager) {
   let activeNetworks: Set<number> | undefined
-  for (const contract of dataManager.contractManagerView.contracts) {
+  const contractManager = await dataManager.getContractManagerView()
+  for (const contract of contractManager.contracts) {
     const chainIds = contract.instances.map((instance) => instance.chainId)
     if (!activeNetworks) {
       activeNetworks = new Set(chainIds)

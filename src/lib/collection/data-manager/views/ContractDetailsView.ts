@@ -17,9 +17,9 @@ export class ContractDetailsView {
   readonly #valueManagerView: ValueManagerView
   readonly #fragments: Map<string, ContractElementFragment>
   readonly #contractId: string
-  readonly #contractInterface: Interface
+  #contractInterface!: Interface
 
-  constructor(
+  private constructor(
     dataManager: CollectionDataManager,
     valueManagerView: ValueManagerView,
     contractId: string,
@@ -28,15 +28,28 @@ export class ContractDetailsView {
     this.#valueManagerView = valueManagerView
     this.#contractId = contractId
     this.#fragments = new Map<string, ContractElementFragment>()
-    const contract = this.#dataManager.data.contracts.find(
-      (contract) => contract.id === this.#contractId,
+  }
+
+  static async create(
+    dataManager: CollectionDataManager,
+    valueManagerView: ValueManagerView,
+    contractId: string,
+  ) {
+    const view = new ContractDetailsView(
+      dataManager,
+      valueManagerView,
+      contractId,
+    )
+    const data = await dataManager.getData()
+    const contract = data.contracts.find(
+      (contract) => contract.id === contractId,
     )
 
     if (!contract) {
-      throw new Error(`Contract with id ${this.#contractId} not found`)
+      throw new Error(`Contract with id ${contractId} not found`)
     }
 
-    const contractInterface = this.#dataManager.data.contractInterfaces.find(
+    const contractInterface = data.contractInterfaces.find(
       (contractInterface) => contractInterface.hash === contract.interfaceHash,
     )
 
@@ -45,8 +58,9 @@ export class ContractDetailsView {
         `Contract interface with hash ${contract.interfaceHash} not found`,
       )
     }
-    this.#contractInterface = createEthersInterface(contractInterface.abi)
-    this.populateInternalDataStructures()
+    view.#contractInterface = createEthersInterface(contractInterface.abi)
+    view.populateInternalDataStructures()
+    return view
   }
 
   getFragment(key: string) {

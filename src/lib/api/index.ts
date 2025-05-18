@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { TransactionReceiptParams } from 'ethers'
+import type { TransactionReceiptParams } from 'ethers'
 
 import {
   CollectionData,
@@ -15,6 +15,7 @@ export type SimulationResponseData = {
 }
 
 class BonadocsAPI {
+  readonly request: typeof this.client.request
   private readonly client: AxiosInstance
 
   constructor(url: string) {
@@ -27,6 +28,7 @@ class BonadocsAPI {
       transformResponse: (data) => JSON.parse(data, jsonUtils.reviver),
       validateStatus: () => true,
     })
+    this.request = this.client.request.bind(this.client)
   }
 
   async loadContractABI(
@@ -81,7 +83,30 @@ class BonadocsAPI {
     return undefined
   }
 
-  setupAuth(authToken: string) {
+  async registerDevice(
+    projectId: number,
+    collectionId: number,
+    token: string,
+    timestamp: number,
+  ): Promise<void> {
+    await this.client.post(
+      `/projects/${projectId}/collections/${collectionId}/register-device`,
+      { token, timestamp },
+    )
+  }
+
+  async sendAutomergeMessage(
+    projectId: number,
+    collectionId: number,
+    encodedMessage: string,
+  ): Promise<void> {
+    await this.client.post(
+      `/projects/${projectId}/collections/${collectionId}/automerge`,
+      { message: encodedMessage },
+    )
+  }
+
+  authenticate(authToken: string) {
     this.client.defaults.headers['Authorization'] = `Bearer ${authToken}`
   }
 }

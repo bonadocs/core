@@ -123,12 +123,12 @@ export class FunctionFragmentView {
    * Encodes the inputs of the function fragment into a call data string.
    * This can be used to call the function on the contract.
    */
-  encodeFunctionData(): string {
+  async encodeFunctionData(): Promise<string> {
     return concat([
       this.fragment.selector,
       AbiCoder.defaultAbiCoder().encode(
         this.#fragment.inputs,
-        this.computeContractArguments() as unknown[],
+        (await this.computeContractArguments()) as unknown[],
       ),
     ])
   }
@@ -215,11 +215,11 @@ export class FunctionFragmentView {
    * for an input, it throws an error.
    * @private
    */
-  private computeContractArguments(): ContractParam {
+  private async computeContractArguments(): Promise<ContractParam> {
     const params: ContractParam = []
-    this.#fragment.inputs.forEach((inputType) => {
-      params.push(this.computeArgument(inputType))
-    })
+    for (const inputType of this.#fragment.inputs) {
+      params.push(await this.computeArgument(inputType))
+    }
 
     let stringifiedParams = JSON.stringify(params)
     for (const [identifier, value] of this.#environmentManagerView.list) {
@@ -231,32 +231,33 @@ export class FunctionFragmentView {
     return JSON.parse(stringifiedParams)
   }
 
-  private computeArgument(
+  private async computeArgument(
     inputType: ParamType,
     path = '',
     pathOverride = false,
-  ): ContractParam {
+  ): Promise<ContractParam> {
     const paramPath = generatePath(inputType, path, pathOverride)
     if (inputType.components) {
       const params: ContractParam = []
-      inputType.components.forEach((componentType, i) => {
+      for (let i = 0; i < inputType.components.length; i++) {
+        const componentType = inputType.components[i]
         params.push(
-          this.computeArgument(
+          await this.computeArgument(
             componentType,
             generatePathForComponent(paramPath, i),
             true,
           ),
         )
-      })
+      }
       return params
     }
 
     if (inputType.arrayChildren) {
-      const generatedCount = Number(this.getDataValue(paramPath))
+      const generatedCount = Number(await this.getDataValue(paramPath))
       const params: ContractParam = []
       for (let i = 0; i < generatedCount; i++) {
         params.push(
-          this.computeArgument(
+          await this.computeArgument(
             inputType.arrayChildren,
             generatePathForComponent(paramPath, i),
             true,
@@ -266,7 +267,7 @@ export class FunctionFragmentView {
       return params
     }
 
-    const value = this.getDataValue(paramPath)
+    const value = await this.getDataValue(paramPath)
     if (value == null) {
       throw new Error(`Value not set for ${paramPath}`)
     }
@@ -411,7 +412,7 @@ export class FunctionFragmentView {
     const deleteFunction = this[deleteFunctionName[valueEditingType]].bind(this)
     const setFunction = this[setFunctionName[valueEditingType]].bind(this)
     // replace the value for the specific path
-    await setFunction(this.getDataValue(path), newPath)
+    await setFunction(await this.getDataValue(path), newPath)
     if (deleteReplaced) {
       await deleteFunction(path)
     }
@@ -421,7 +422,7 @@ export class FunctionFragmentView {
     for (const key of keys) {
       if (key.startsWith(path) + '.') {
         const newKey = key.replace(path, newPath)
-        await setFunction(this.getDataValue(key), newKey)
+        await setFunction(await this.getDataValue(key), newKey)
         if (deleteReplaced) {
           await deleteFunction(key)
         }

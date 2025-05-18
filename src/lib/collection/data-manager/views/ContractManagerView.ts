@@ -32,13 +32,18 @@ export class ContractManagerView {
   #onContractInstanceAdded: CallbackListener
   #onContractInstanceRemoved: CallbackListener
 
-  constructor(dataManager: CollectionDataManager) {
+  private constructor(dataManager: CollectionDataManager) {
     this.#dataManager = dataManager
     this.#contractDefinitions = new Map<string, ContractDefinition>()
     this.#contractInterfaces = new Map<string, ContractInterface>()
     this.#ethersContractInterfaces = new Map<string, Interface>()
-    this.setupEventListeners()
-    this.resetInternalDataStructures()
+  }
+
+  static async create(dataManager: CollectionDataManager) {
+    const view = new ContractManagerView(dataManager)
+    view.setupEventListeners()
+    await view.resetInternalDataStructures()
+    return view
   }
 
   getInterface(hash: string) {
@@ -238,12 +243,13 @@ export class ContractManagerView {
     this.setupCallbackEventListeners()
   }
 
-  private resetInternalDataStructures() {
+  private async resetInternalDataStructures() {
     this.#ethersContractInterfaces.clear()
     this.#contractInterfaces.clear()
     this.#contractDefinitions.clear()
 
-    for (const contractInterface of this.#dataManager.data.contractInterfaces) {
+    const data = await this.#dataManager.getData()
+    for (const contractInterface of data.contractInterfaces) {
       this.#ethersContractInterfaces.set(
         contractInterface.hash,
         createEthersInterface(contractInterface.abi),
@@ -251,7 +257,7 @@ export class ContractManagerView {
       this.#contractInterfaces.set(contractInterface.hash, contractInterface)
     }
 
-    for (const contract of this.#dataManager.data.contracts) {
+    for (const contract of data.contracts) {
       this.#contractDefinitions.set(contract.id, contract)
     }
   }
@@ -275,8 +281,8 @@ export class ContractManagerView {
           event.data.contractInterface,
         )
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:remove-contract-interface', {
@@ -286,24 +292,24 @@ export class ContractManagerView {
         ethersContractInterfaces.delete(event.data.contractInterfaceHash)
         contractInterfaces.delete(event.data.contractInterfaceHash)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:add-contract', {
       process(event: AddCollectionContractEvent): void | Promise<void> {
         contractDefinitions.set(event.data.contract.id, event.data.contract)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
     this.#dataManager.on('collection:remove-contract', {
       process(event: RemoveCollectionContractEvent): void | Promise<void> {
         contractDefinitions.delete(event.data.contractId)
       },
-      undo(): void | Promise<void> {
-        resetInternalDataStructures()
+      async undo(): Promise<void> {
+        await resetInternalDataStructures()
       },
     })
   }

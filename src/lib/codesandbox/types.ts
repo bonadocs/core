@@ -33,6 +33,7 @@ export abstract class CodeRunner {
     return this.#language
   }
 
+  abstract cacheLibrary(name: string): Promise<void>
   abstract loadLibrary(name: string): Promise<void>
   abstract run(code: string, context: CodeRunnerContext): Promise<unknown>
 }

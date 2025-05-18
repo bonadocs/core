@@ -15,7 +15,7 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
     return this.runScript(script, context)
   }
 
-  async loadLibrary(name: string): Promise<void> {
+  async cacheLibrary(name: string): Promise<void> {
     console.log('Loading JS library:', name)
     const url = name
     if (url.startsWith('http')) {
@@ -37,7 +37,20 @@ export abstract class JavaScriptCodeRunner extends CodeRunner {
     }
     const packageUrl = await this.getPackageUrl(scope, packageName, version)
     this.#libraryCode[name] = await this.loadScriptFromUrl(packageUrl)
+    const storage = await getCodeCacheStore()
+    await storage.set(['js', 'cached-library', name], this.#libraryCode[name])
     console.log('Loaded JS library:', name)
+  }
+
+  async loadLibrary(name: string): Promise<void> {
+    const storage = await getCodeCacheStore()
+    const cached = await storage.getString(['js', 'cached-library', name])
+    if (cached) {
+      this.#libraryCode[name] = cached
+      return
+    }
+
+    await this.cacheLibrary(name)
   }
 
   private async loadBaseScript(): Promise<string> {
@@ -82,11 +95,25 @@ async function resolveDynamicLibraries() {
   const libraries = Object.getOwnPropertyNames(dynamicLibraries)
   for (const library of libraries) {
     dynamicLibraries[library] = await dynamicLibraries[library];
+    const moduleExports = Object.getOwnPropertyNames(dynamicLibraries[library]);
+
+    // use the default export if it's the only export
+    if (moduleExports.length === 1 && moduleExports[0] === 'default') {
+      dynamicLibraries[library] = dynamicLibraries[library].default;
+    }
   }
 }
 
 function require(library) {
   return dynamicLibraries[library];
+}
+
+async function parseEthersError(e, contract) {
+  if (e.data || e.error?.data) {
+    try {
+      e.cause = contract.interface.parseError(e.data || e.error?.data);
+    } catch {}
+  }
 }
 `
     return script
@@ -177,7 +204,7 @@ function require(library) {
 
   protected async loadScriptFromUrl(url: string): Promise<string> {
     console.log('Loading JS script from URL:', url)
-    const key = `script:${url}`
+    const key = ['js', 'cached-script', url]
     const storage = await getCodeCacheStore()
     const cached = await storage.getString(key)
     if (cached) {

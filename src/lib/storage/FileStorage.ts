@@ -124,6 +124,20 @@ export class FileStorage extends BaseStorage {
     }
   }
 
+  async destroy(): Promise<void> {
+    try {
+      await fs.rm(this.dir, { recursive: true, force: true })
+    } catch (error) {
+      throw new FileStorageError(
+        `Failed to destroy storage at ${this.dir}: ${
+          !!error && typeof error === 'object' && 'message' in error
+            ? error.message
+            : 'An unknown error occurred'
+        }`,
+      )
+    }
+  }
+
   async removeRange(prefix: StorageKey): Promise<void> {
     prefix = this.normalizeKey(prefix)
     try {

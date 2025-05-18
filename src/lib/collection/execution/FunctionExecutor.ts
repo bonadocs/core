@@ -57,14 +57,13 @@ export class FunctionExecutor extends BaseExecutor {
     )
 
     const executor = new FunctionExecutor(
-      getActiveNetworks(dataManager, functionKeys),
+      await getActiveNetworks(dataManager, functionKeys),
       configs,
     )
 
+    const contractManagerView = await dataManager.getContractManagerView()
     for (const config of configs) {
-      const contract = dataManager.contractManagerView.getContract(
-        config.contractId,
-      )
+      const contract = contractManagerView.getContract(config.contractId)
       if (!contract) {
         throw new Error('Invalid contract ID')
       }
@@ -207,6 +206,7 @@ export class FunctionExecutor extends BaseExecutor {
    * Simulates a single function on the widget. When the function is read-only, an error
    * is thrown because the simulation API does not support static calls. When the
    * function is mutable or payable, the transaction is simulated and the transaction
+
    * receipt is returned.
    *
    * @param func The function to simulate
@@ -247,7 +247,7 @@ export class FunctionExecutor extends BaseExecutor {
     const to = this.contractAddresses
       .get(this.activeChainId)
       ?.get(func.contractId)
-    const data = func.fragmentView.encodeFunctionData()
+    const data = await func.fragmentView.encodeFunctionData()
 
     if (!to) {
       throw new Error('The current chain is not supported for this contract')
@@ -321,6 +321,7 @@ async function getExecutableFunctionConfigurations(
   functions: readonly string[],
 ): Promise<ExecutableFunctionConfiguration[]> {
   const result: ExecutableFunctionConfiguration[] = []
+  const contractManagerView = await dataManager.getContractManagerView()
   for (const func of functions) {
     const contractId = func.split('.')[0]
     const fragmentView = await dataManager.getFunctionFragmentView(
@@ -330,8 +331,8 @@ async function getExecutableFunctionConfigurations(
     if (!fragmentView) {
       throw new Error('Invalid function')
     }
-    const contractInterface = dataManager.contractManagerView.getInterface(
-      dataManager.contractManagerView.getContract(contractId)!.interfaceHash,
+    const contractInterface = contractManagerView.getInterface(
+      contractManagerView.getContract(contractId)!.interfaceHash,
     )!
 
     result.push({
@@ -349,14 +350,15 @@ async function getExecutableFunctionConfigurations(
   return result
 }
 
-function getActiveNetworks(
+async function getActiveNetworks(
   dataManager: CollectionDataManager,
   functions: readonly string[],
 ) {
   const contractIds = new Set(functions.map((f) => f.split('.')[0]))
   let activeNetworks: Set<number> | undefined
+  const contractManagerView = await dataManager.getContractManagerView()
   for (const contractId of contractIds) {
-    const contract = dataManager.contractManagerView.getContract(contractId)
+    const contract = contractManagerView.getContract(contractId)
     if (!contract) {
       throw new Error('Invalid contract ID')
     }

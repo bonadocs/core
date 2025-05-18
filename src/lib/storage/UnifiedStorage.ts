@@ -51,6 +51,10 @@ type TransactionTask = {
   callback: TaskCallback
 } & DBTask
 
+type DestroyTask = {
+  operation: 'destroy'
+} & DBTask
+
 type Task =
   | InitTask
   | GetTask
@@ -59,6 +63,7 @@ type Task =
   | RemoveTask
   | RemoveRangeTask
   | TransactionTask
+  | DestroyTask
 
 export class UnifiedStorage extends BaseStorage {
   readonly #dbName: string
@@ -91,6 +96,10 @@ export class UnifiedStorage extends BaseStorage {
 
   removeRange(prefix: StorageKey): Promise<void> {
     return UnifiedStorage.#removeRange(this.#dbName, this.#storeName, prefix)
+  }
+
+  destroy(): Promise<void> {
+    return UnifiedStorage.#destroy(this.#dbName, this.#storeName)
   }
 
   async transaction(func: TransactionFunction): Promise<void> {
@@ -139,6 +148,9 @@ export class UnifiedStorage extends BaseStorage {
           break
         case 'removeRange':
           await this.#handleRemoveRange(task)
+          break
+        case 'destroy':
+          await this.#handleDestroy(task)
           break
       }
     }
@@ -303,6 +315,25 @@ export class UnifiedStorage extends BaseStorage {
     const { dbName, storeName, prefix, callback } = task
     const backend = this.#backends[`${dbName}:${storeName}`]
     await backend.removeRange(prefix)
+    callback(undefined)
+  }
+
+  static async #destroy(dbName: string, storeName: string) {
+    return new Promise<void>((resolve) => {
+      this.#tasks.push({
+        operation: 'destroy',
+        dbName,
+        storeName,
+        callback: resolve as TaskCallback,
+      })
+    })
+  }
+
+  static async #handleDestroy(task: DestroyTask) {
+    const { dbName, storeName, callback } = task
+    const backend = this.#backends[`${dbName}:${storeName}`]
+    await backend.destroy()
+    delete this.#backends[`${dbName}:${storeName}`]
     callback(undefined)
   }
 

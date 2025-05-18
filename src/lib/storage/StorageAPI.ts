@@ -15,4 +15,5 @@ export type StorageAPI = {
   readonly remove: (key: StorageKey) => Promise<void>
   readonly removeRange: (prefix: StorageKey) => Promise<void>
   readonly transaction: (func: TransactionFunction) => Promise<void>
+  readonly destroy: () => Promise<void>
 }

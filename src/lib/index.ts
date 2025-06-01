@@ -1,3 +1,5 @@
+export { configure } from './config'
+
 export * from './api'
 export * from './collection'
 export * from './chains'

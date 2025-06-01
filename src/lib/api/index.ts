@@ -6,7 +6,7 @@ import {
   ExecutableEVMCall,
   ExecutionError,
 } from '../collection'
-import { config } from '../config'
+import { config, validateConfig } from '../config'
 import { jsonUtils } from '../util'
 
 export type SimulationResponseData = {
@@ -17,6 +17,7 @@ export type SimulationResponseData = {
 class BonadocsAPI {
   readonly request: typeof this.client.request
   private readonly client: AxiosInstance
+  private isAuthenticated = false
 
   constructor(url: string) {
     this.client = axios.create({
@@ -35,6 +36,7 @@ class BonadocsAPI {
     chainId: number,
     address: string,
   ): Promise<string | undefined> {
+    this.assertAuthenticated()
     try {
       const response = await this.client.get(
         `/contracts?address=${address}&chainId=${chainId}`,
@@ -48,10 +50,34 @@ class BonadocsAPI {
     return undefined
   }
 
+  async getWsToken(
+    projectId: number,
+    collectionId: number,
+  ): Promise<string | null> {
+    this.assertAuthenticated()
+    try {
+      const response = await this.client.post('/auth/ws', {
+        projectId,
+        collectionId,
+      })
+
+      const token = response.data?.data?.token
+      if (typeof token === 'string') {
+        return token
+      } else if (token != null) {
+        console.debug('Token expected to be a string', { token })
+      }
+    } catch {
+      // ignore
+    }
+    return null
+  }
+
   async simulateEVMBundle(
     chainId: number,
     calls: ExecutableEVMCall[],
   ): Promise<SimulationResponseData[] | undefined> {
+    this.assertAuthenticated()
     try {
       const response = await this.client.post(
         `/simulate?chainId=${chainId}`,
@@ -70,6 +96,7 @@ class BonadocsAPI {
     projectId: number,
     collectionId: number,
   ): Promise<CollectionData | undefined> {
+    this.assertAuthenticated()
     try {
       const response = await this.client.get(
         `/projects/${projectId}/collections/${collectionId}/data`,
@@ -89,25 +116,24 @@ class BonadocsAPI {
     token: string,
     timestamp: number,
   ): Promise<void> {
+    this.assertAuthenticated()
     await this.client.post(
       `/projects/${projectId}/collections/${collectionId}/register-device`,
       { token, timestamp },
     )
   }
 
-  async sendAutomergeMessage(
-    projectId: number,
-    collectionId: number,
-    encodedMessage: string,
-  ): Promise<void> {
-    await this.client.post(
-      `/projects/${projectId}/collections/${collectionId}/automerge`,
-      { message: encodedMessage },
-    )
-  }
-
   authenticate(authToken: string) {
     this.client.defaults.headers['Authorization'] = `Bearer ${authToken}`
+    this.isAuthenticated = true
+  }
+
+  assertAuthenticated() {
+    if (!this.isAuthenticated) {
+      throw new Error(
+        'API client is not authenticated. Please call authenticate() first.',
+      )
+    }
   }
 }
 
@@ -118,6 +144,7 @@ export function getApi(url?: string): BonadocsAPI {
   }
 
   if (!url) {
+    validateConfig()
     url = config.defaultAPIUrl
   }
 

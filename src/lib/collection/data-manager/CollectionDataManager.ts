@@ -63,7 +63,7 @@ export class CollectionDataManager {
       : await getAutomergeRepo()
     const manager = new CollectionDataManager(automerge, dataOrId, forceNewDoc)
 
-    await manager.#dataHandle.whenReady()
+    await manager.#dataHandle.whenReady(['ready', 'unavailable'])
     manager.setupEventListeners()
     await new Promise<void>((resolve) => {
       manager.#dataHandle.change((doc: CollectionData) => {

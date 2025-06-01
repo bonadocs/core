@@ -1,6 +1,6 @@
 import { NetworkAdapterInterface, Repo } from '@automerge/automerge-repo'
-import { BrowserWebSocketClientAdapter } from '@automerge/automerge-repo-network-websocket'
 
+import { BonadocsClientNetworkAdapter } from './network-adapter'
 import { BonadocsClientStorageAdapter } from './storage-adapter'
 
 export async function getAutomergeRepo(apiData?: {
@@ -10,8 +10,9 @@ export async function getAutomergeRepo(apiData?: {
   const networks: NetworkAdapterInterface[] = []
   if (apiData) {
     networks.push(
-      new BrowserWebSocketClientAdapter(
-        'wss://sync.automerge.org',
+      BonadocsClientNetworkAdapter.getNetworkAdapter(
+        apiData.projectId,
+        apiData.collectionId,
       ) as unknown as NetworkAdapterInterface,
     )
   }

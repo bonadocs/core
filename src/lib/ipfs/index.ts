@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import { id } from 'ethers'
 
-import { config } from '../config'
+import { config, validateConfig } from '../config'
 import { getMetadataStore } from '../storage'
 
 const ipfsGateways = [
@@ -128,6 +128,7 @@ export async function loadFromIPFSWithTimeout(
 }
 
 export async function saveToIPFS(data: string): Promise<string> {
+  validateConfig()
   const hash = id(data)
 
   const metadataStore = await getMetadataStore()

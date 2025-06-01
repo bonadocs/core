@@ -1,5 +1,23 @@
 export const config = {
-  defaultAPIUrl: 'https://api.bonadocs.com',
-  pinataApiKey:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJiYmU2MWVjZS1hMzI2LTRmN2QtYTYwNC1kZWQ0NTNkNzE5MjkiLCJlbWFpbCI6ImFobWFkQGJvbmFkb2NzLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImlkIjoiRlJBMSIsImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxfSx7ImlkIjoiTllDMSIsImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxfV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiI5M2U4MzI2ZjEwZjQzMGQxZDFhZCIsInNjb3BlZEtleVNlY3JldCI6IjgxMmU5NzhmNTk5Njk5MmVlNWI5NmViYmVjODBkYWNmNGQyMDZmMWFkNDkzNjI4MDJmNDIzNTY2NTk1ODkxY2IiLCJpYXQiOjE3MjYwNzg3ODB9.HT-vmO-OdbkUURoXIhkAwrFdDHODSQJ2yy4Yf9p0lg8',
+  defaultAPIUrl: '',
+  pinataApiKey: '',
+  wsApiUrl: '',
+}
+
+export function configure(configOverrides: Partial<typeof config>) {
+  Object.assign(config, configOverrides)
+}
+
+export function validateConfig() {
+  if (!config.defaultAPIUrl) {
+    throw new Error('defaultAPIUrl is not configured')
+  }
+
+  if (!config.pinataApiKey) {
+    throw new Error('pinataApiKey is not configured')
+  }
+
+  if (!config.wsApiUrl) {
+    throw new Error('wsApiUrl is not configured')
+  }
 }

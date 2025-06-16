@@ -1,12 +1,19 @@
 import { BrowserWebSocketClientAdapter } from '@automerge/automerge-repo-network-websocket'
+import WebSocket from 'isomorphic-ws'
 
 import { getApi } from '../api'
 import { config, validateConfig } from '../config'
+import { lock } from '../util/lock'
 
 const networkAdapters = new Map<string, BonadocsClientNetworkAdapter>()
 
 export class BonadocsClientNetworkAdapter extends BrowserWebSocketClientAdapter {
+  readonly docIdPromise: Promise<string>
+
   private token: string | null = null
+  private originalOnMessage: (event: WebSocket.MessageEvent) => void
+  private docId: string | null = null
+  private resolveDocId!: (docId: string) => void
 
   private constructor(
     private readonly projectId: number,
@@ -14,14 +21,29 @@ export class BonadocsClientNetworkAdapter extends BrowserWebSocketClientAdapter 
   ) {
     validateConfig()
     super(config.wsApiUrl)
+    this.originalOnMessage = this.onMessage
+    this.onMessage = this.newOnMessage.bind(this)
+    this.docIdPromise = new Promise((resolve) => {
+      this.resolveDocId = resolve
+    })
   }
 
-  static getNetworkAdapter(projectId: number, collectionId: number) {
+  static async getNetworkAdapter(projectId: number, collectionId: number) {
     const key = `${projectId}:${collectionId}`
     let adapter = networkAdapters.get(key)
     if (!adapter) {
-      adapter = new BonadocsClientNetworkAdapter(projectId, collectionId)
-      networkAdapters.set(key, adapter)
+      adapter = await lock(`create-adapter-${key}`, async () => {
+        if (networkAdapters.has(key)) {
+          return networkAdapters.get(key)!
+        }
+
+        const newAdapter = new BonadocsClientNetworkAdapter(
+          projectId,
+          collectionId,
+        )
+        networkAdapters.set(key, newAdapter)
+        return newAdapter
+      })
     }
     return adapter
   }
@@ -39,6 +61,30 @@ export class BonadocsClientNetworkAdapter extends BrowserWebSocketClientAdapter 
     })
   }
 
+  getDocId(): string | null {
+    return this.docId
+  }
+
+  private newOnMessage(event: WebSocket.MessageEvent) {
+    // Handle messages from the server
+    try {
+      const message = JSON.parse(event.data.toString())
+      if (message.type === 'bonadocs.auth.success' && message.documentId) {
+        this.docId = message.documentId
+        this.resolveDocId(message.documentId)
+        console.log('Found document ID for collection:', {
+          projectId: this.projectId,
+          collectionId: this.collectionId,
+          documentId: this.docId,
+        })
+      } else {
+        this.originalOnMessage(event)
+      }
+    } catch {
+      this.originalOnMessage(event)
+    }
+  }
+
   private async joinWithToken() {
     const token = await this.getWsToken()
     this.socket!.send(
@@ -46,10 +92,10 @@ export class BonadocsClientNetworkAdapter extends BrowserWebSocketClientAdapter 
         type: 'bonadocs.auth',
         token: token,
       }),
-      () => {
-        super.join()
-      },
     )
+    setTimeout(() => {
+      super.join()
+    }, 1000) // Delay to ensure the token is sent before joining
   }
 
   private async getWsToken(): Promise<string> {
@@ -84,7 +130,9 @@ export class BonadocsClientNetworkAdapter extends BrowserWebSocketClientAdapter 
       }
 
       const currentTime = Math.floor(Date.now() / 1000) // Current time in seconds
-      return exp < currentTime // Token is expired if exp is less than current time
+      // Token is expired if exp is less than current time
+      // with a 1-minute buffer
+      return exp < currentTime - 60
     } catch {
       return false // Invalid JSON in token payload - cannot determine expiration
     }

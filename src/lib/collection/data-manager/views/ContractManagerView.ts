@@ -31,6 +31,7 @@ export class ContractManagerView {
   #onContractRenamed: CallbackListener
   #onContractInstanceAdded: CallbackListener
   #onContractInstanceRemoved: CallbackListener
+  #onCollectionUpdated: CallbackListener
 
   private constructor(dataManager: CollectionDataManager) {
     this.#dataManager = dataManager
@@ -43,6 +44,15 @@ export class ContractManagerView {
     const view = new ContractManagerView(dataManager)
     view.setupEventListeners()
     await view.resetInternalDataStructures()
+
+    view.#onCollectionUpdated = () => {
+      view.resetInternalDataStructures().catch((e) => {
+        console.error(
+          `[${ContractManagerView.name}], Failed to reset internal data structures:`,
+          e,
+        )
+      })
+    }
     return view
   }
 
@@ -353,6 +363,11 @@ export class ContractManagerView {
     this.#dataManager.on(
       'collection:remove-contract-instance',
       createEventListener(() => this.#onContractInstanceRemoved),
+    )
+
+    this.#dataManager.on(
+      'collection:update',
+      createEventListener(() => this.#onCollectionUpdated),
     )
   }
 }

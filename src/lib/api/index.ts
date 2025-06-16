@@ -123,6 +123,22 @@ class BonadocsAPI {
     )
   }
 
+  async createCollection(
+    projectId: number,
+    data: CollectionData,
+  ): Promise<number | undefined> {
+    this.assertAuthenticated()
+    const addedCollection = await this.client.post(
+      `projects/${projectId}/collections`,
+      {
+        name: data.name,
+        isPublic: false,
+        collectionData: data,
+      },
+    )
+    return addedCollection.data?.data?.collectionId
+  }
+
   authenticate(authToken: string) {
     this.client.defaults.headers['Authorization'] = `Bearer ${authToken}`
     this.isAuthenticated = true

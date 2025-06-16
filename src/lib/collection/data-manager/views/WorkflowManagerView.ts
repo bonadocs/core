@@ -40,6 +40,7 @@ export class WorkflowManagerView {
   #onWorkflowFunctionRemoved: CallbackListener
   #onWorkflowCodeSet: CallbackListener
   #onWorkflowCodeDeleted: CallbackListener
+  #onCollectionUpdated: CallbackListener
 
   private constructor(
     valueManagerView: ValueManagerView,
@@ -58,6 +59,15 @@ export class WorkflowManagerView {
     const view = new WorkflowManagerView(valueManagerView, dataManager)
     view.setupEventListeners()
     await view.resetInternalDataStructures()
+
+    view.#onCollectionUpdated = () => {
+      view.resetInternalDataStructures().catch((e) => {
+        console.error(
+          `[${WorkflowManagerView.name}], Failed to reset internal data structures:`,
+          e,
+        )
+      })
+    }
     return view
   }
 
@@ -523,6 +533,11 @@ export class WorkflowManagerView {
     this.#dataManager.on(
       'collection:delete-workflow-code',
       createEventListener(() => this.#onWorkflowCodeDeleted),
+    )
+
+    this.#dataManager.on(
+      'collection:update',
+      createEventListener(() => this.#onCollectionUpdated),
     )
   }
 }

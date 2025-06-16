@@ -1,4 +1,4 @@
-import { getApi, httpGet } from '../api'
+import { httpGet } from '../api'
 import { BonadocsError } from '../errors'
 import { loadFromIPFSWithTimeout } from '../ipfs'
 import { loadProtocolMetadata } from '../search'
@@ -38,8 +38,13 @@ export class Collection {
    * Create a new collection with the given name and description.
    * @param name
    * @param description
+   * @param overrides
    */
-  static createBlankCollection(name: string, description: string): Collection {
+  static createBlankCollection(
+    name: string,
+    description: string,
+    overrides?: Partial<CollectionData>,
+  ): Collection {
     const collection = new Collection(name, description)
     collection.#data = {
       // the id will be set by automerge
@@ -52,6 +57,7 @@ export class Collection {
       variables: [],
       contracts: [],
       workflows: [],
+      ...overrides,
     }
     return collection
   }
@@ -84,23 +90,14 @@ export class Collection {
     projectId: number,
     collectionId: number,
   ): Promise<Collection> {
-    const api = getApi()
-    const collectionData = await api.getCollectionData(projectId, collectionId)
-    if (!collectionData?.id) {
-      throw Error('Failed to load collection data from the API')
-    }
-
-    const manager = await CollectionDataManager.create(collectionData.id, {
+    const manager = await CollectionDataManager.create(null, {
       projectId,
       collectionId,
     })
     // ensure the data is loaded
-    await manager.getData()
+    const data = await manager.getData()
 
-    const collection = new Collection(
-      collectionData.name,
-      collectionData.description,
-    )
+    const collection = new Collection(data.name, data.description)
     collection.#manager = manager
 
     return collection

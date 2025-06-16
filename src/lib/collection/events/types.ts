@@ -1,4 +1,5 @@
 ﻿export type CollectionEventType =
+  | 'collection:update'
   | 'collection:rename'
   | 'collection:update-description'
   | 'collection:update-string'

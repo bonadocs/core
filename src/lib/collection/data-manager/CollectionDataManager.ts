@@ -1,6 +1,7 @@
 ﻿import { DocHandle, DocumentId, Repo } from '@automerge/automerge-repo'
 import { FunctionFragment, sha256, toUtf8Bytes } from 'ethers'
 
+import { getApi } from '../../api'
 import { getAutomergeRepo } from '../../automerge'
 import { BonadocsError } from '../../errors'
 import { saveToIPFS } from '../../ipfs'
@@ -18,10 +19,12 @@ import {
   ValueManagerView,
 } from './views'
 import { WorkflowManagerView } from './views/WorkflowManagerView'
+import { createEventListener } from './views/util'
 
 export class CollectionDataManager {
   readonly #eventEmitter: EventEmitter
-  readonly #dataHandle!: DocHandle<CollectionData>
+  #dataHandle!: DocHandle<CollectionData>
+
   #environmentManagerView: CollectionEnvironmentManagerView | undefined
   #metadataView: CollectionMetadataView | undefined
   #contractManagerView: ContractManagerView | undefined
@@ -34,36 +37,57 @@ export class CollectionDataManager {
   #dataId!: string
 
   private constructor(
-    automerge: Repo,
+    automergeRepo: Repo,
     dataOrId: CollectionData | string,
     forceNewDoc: boolean,
   ) {
     this.#eventEmitter = new EventEmitter()
     if (forceNewDoc) {
-      this.#dataHandle = automerge.create(dataOrId)
+      this.#dataHandle = automergeRepo.create(dataOrId)
     } else if (typeof dataOrId === 'string') {
-      this.#dataHandle = automerge.find(dataOrId as DocumentId)
+      this.#dataHandle = automergeRepo.find(dataOrId as DocumentId)
     } else if (dataOrId.id.trim() !== '') {
-      this.#dataHandle = automerge.find(dataOrId.id as DocumentId)
+      this.#dataHandle = automergeRepo.find(dataOrId.id as DocumentId)
     } else {
-      this.#dataHandle = automerge.create(dataOrId)
+      this.#dataHandle = automergeRepo.create(dataOrId)
     }
+
+    this.#dataHandle.on('change', (doc) => {
+      this.#eventEmitter.emit({
+        type: 'collection:update',
+        data: doc,
+      })
+    })
   }
 
   static async create(
-    dataOrId: CollectionData | string,
+    dataOrId: CollectionData | string | null,
     projectDetails?: {
       projectId: number
       collectionId: number
     },
     forceNewDoc = false,
   ): Promise<CollectionDataManager> {
-    const automerge = projectDetails
+    const { repo: automerge, docId } = projectDetails
       ? await getAutomergeRepo(projectDetails)
       : await getAutomergeRepo()
-    const manager = new CollectionDataManager(automerge, dataOrId, forceNewDoc)
 
-    await manager.#dataHandle.whenReady(['ready', 'unavailable'])
+    if (docId) {
+      dataOrId = docId
+    }
+
+    if (!dataOrId) {
+      throw new Error('Failed to load collection')
+    }
+
+    const manager = new CollectionDataManager(automerge, dataOrId, forceNewDoc)
+    try {
+      await manager.#dataHandle.whenReady()
+    } catch (e) {
+      console.error('Error loading collection data:', e)
+      throw new Error('The collection data could not be loaded')
+    }
+
     manager.setupEventListeners()
     await new Promise<void>((resolve) => {
       manager.#dataHandle.change((doc: CollectionData) => {
@@ -83,16 +107,32 @@ export class CollectionDataManager {
   }
 
   /**
-   * Saves a version of the collection to the server. Throws an error if the
-   * save could not be completed.
+   * Creates a new collection on the Bonadocs API.
    *
-   * THIS DOES NOT WORK YET.
+   * Returns the ID of the new collection.
+   *
+   * @param projectId
    */
-  saveToServer(): Promise<string> {
-    if (!this.#projectId || !this.#collectionId) {
-      throw new Error('The project and collection IDs must be set')
+  async createOnBonadocsApi(projectId: number): Promise<number> {
+    if (this.#projectId || this.#collectionId) {
+      throw new Error('This can only be used to create a new collection.')
     }
-    return this.publishToIPFS()
+
+    this.#projectId = projectId
+
+    const data = (await this.#dataHandle.doc())!
+    const collectionId = await getApi().createCollection(projectId, data)
+    if (!collectionId) {
+      throw new Error('Failed to create collection on Bonadocs API')
+    }
+
+    const { repo, docId } = await getAutomergeRepo({
+      projectId,
+      collectionId,
+    })
+    this.#dataHandle = repo.find(docId as DocumentId)
+
+    return collectionId
   }
 
   /**
@@ -133,6 +173,13 @@ export class CollectionDataManager {
     listener: EventListener<TEvent, TEventData>,
   ) {
     this.#eventEmitter.on(type, listener)
+  }
+
+  onChange(listener: () => void | Promise<void>): void {
+    this.on(
+      'collection:update',
+      createEventListener(() => listener),
+    )
   }
 
   get id(): string {
@@ -240,6 +287,16 @@ export class CollectionDataManager {
 
     await contractViews.get(fragmentKey)?.clear()
     contractViews.delete(fragmentKey)
+  }
+
+  async delete() {
+    if (this.#projectId || this.#collectionId) {
+      throw new Error(
+        'Cannot delete a collection that is associated with a project or collection ID.',
+      )
+    }
+
+    this.#dataHandle.delete()
   }
 
   private async createFunctionFragmentView(

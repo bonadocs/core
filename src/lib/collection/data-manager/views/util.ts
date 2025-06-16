@@ -14,12 +14,13 @@ export type CallbackListener = (() => void) | undefined
 export function createEventListener<T extends EventType>(
   callbackGetter: () => CallbackListener,
 ): EventListener<T> {
-  const callback = callbackGetter()
   return {
     process(): void | Promise<void> {
+      const callback = callbackGetter()
       if (callback) callback()
     },
     undo(): void | Promise<void> {
+      const callback = callbackGetter()
       if (callback) callback()
     },
   }

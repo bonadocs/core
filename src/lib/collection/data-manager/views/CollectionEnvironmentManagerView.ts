@@ -12,6 +12,7 @@ export class CollectionEnvironmentManagerView {
   #onVariableAdded: CallbackListener
   #onVariableRemoved: CallbackListener
   #onVariableRenamed: CallbackListener
+  #onCollectionUpdated: CallbackListener
 
   // view state - managed internally for efficient data access
   readonly #variableMap: Map<string, string>
@@ -25,6 +26,15 @@ export class CollectionEnvironmentManagerView {
     const view = new CollectionEnvironmentManagerView(dataManager)
     await view.resetInternalDataStructures()
     view.setupEventListeners()
+
+    view.#onCollectionUpdated = () => {
+      view.resetInternalDataStructures().catch((e) => {
+        console.error(
+          `[${CollectionEnvironmentManagerView.name}], Failed to reset internal data structures:`,
+          e,
+        )
+      })
+    }
     return view
   }
 
@@ -149,6 +159,10 @@ export class CollectionEnvironmentManagerView {
     this.#dataManager.on(
       'collection:rename-variable',
       createEventListener(() => this.#onVariableRenamed),
+    )
+    this.#dataManager.on(
+      'collection:update',
+      createEventListener(() => this.#onCollectionUpdated),
     )
   }
 }

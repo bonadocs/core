@@ -136,10 +136,6 @@ export async function saveToIPFS(data: string): Promise<string> {
   if (existing) {
     return existing
   }
-
-  console.log(config.pinataApiKey, 'api key pinata');
-  
-
   const response = await axios.post(
     'https://api.pinata.cloud/pinning/pinJSONToIPFS',
     {

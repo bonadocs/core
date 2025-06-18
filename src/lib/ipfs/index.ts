@@ -74,13 +74,13 @@ class HttpClient {
   }
 }
 
-const pinataApiClient = axios.create({
-  baseURL: 'https://api.pinata.cloud/v3',
-  headers: {
-    Authorization: `Bearer ${config.pinataApiKey}`,
-  },
-  validateStatus: () => true,
-})
+// const pinataApiClient = axios.create({
+//   baseURL: 'https://api.pinata.cloud',
+//   headers: {
+//     Authorization: `Bearer ${config.pinataApiKey}`,
+//   },
+//   validateStatus: () => true,
+// })
 
 function getClients(): HttpClient[] {
   if (!clients) {
@@ -137,10 +137,19 @@ export async function saveToIPFS(data: string): Promise<string> {
     return existing
   }
 
-  const response = await pinataApiClient.post(
+  console.log(config.pinataApiKey, 'api key pinata');
+  
+
+  const response = await axios.post(
     'https://api.pinata.cloud/pinning/pinJSONToIPFS',
     {
       pinataContent: JSON.parse(data),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${config.pinataApiKey}`,
+        'Content-Type': 'application/json',
+      },
     },
   )
   if (response.status !== 200) {

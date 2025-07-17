@@ -24,8 +24,8 @@ async function run() {
 }
 
 async function orchestrate() {
-  await resolveDynamicLibraries();
   try {
+    await resolveDynamicLibraries();
     const result = await run();
     self.postMessage({ result: {value: result} });
   } catch (error) {
@@ -81,6 +81,16 @@ orchestrate();`
             handler.func(data)
           }
         }
+      }
+
+      worker.onerror = function (e) {
+        e.stopPropagation()
+        e.stopImmediatePropagation()
+        e.preventDefault()
+
+        worker.terminate()
+        console.error('Worker error:', e.message, e)
+        return reject(e.error || new Error(e.message))
       }
     })
   }

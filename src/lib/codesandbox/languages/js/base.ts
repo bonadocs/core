@@ -173,7 +173,10 @@ async function parseEthersError(e, contract) {
 
     const defaultFile = packageJsDelivrRoot + versionMetadata.default
     const defaultScriptContent = await this.loadScriptFromUrl(defaultFile)
-    if (defaultScriptContent.includes('import')) {
+    if (
+      defaultScriptContent.includes('import') ||
+      defaultScriptContent.includes('export')
+    ) {
       // it's ESM, use ESM loader
       return `esm:${fullPackageName}:${packageJsDelivrRoot}/+esm`
     }

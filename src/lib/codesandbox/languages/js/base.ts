@@ -65,6 +65,15 @@ ${code}
     }
 
     script += `
+function isSerializable(value) {
+  try {
+    const keys = Object.keys(JSON.parse(JSON.stringify(value)));
+    return !!keys.length;
+  } catch {
+    return false;
+  }
+}
+
 function getConsoleLogReplacer() {
   const seen = new WeakSet()
   return (key, value) => {
@@ -73,6 +82,10 @@ function getConsoleLogReplacer() {
         return
       }
       seen.add(value)
+    }
+
+    if (value == null) {
+      return null;
     }
 
     if (typeof value === 'bigint') {
@@ -87,6 +100,28 @@ function getConsoleLogReplacer() {
           .join('')
       )
     }
+
+    if (isSerializable(value)) {
+      return value
+    }
+
+    if (typeof value === 'function') {
+      return undefined
+    }
+
+    if (typeof value === 'symbol') {
+      return value.toString()
+    }
+
+    if (typeof value === 'object') {
+      const newValue = {}
+      for (const k of Object.getOwnPropertyNames(value)) {
+        const v = value[k]
+        newValue[k] = getConsoleLogReplacer()(k, v)
+      }
+      return newValue
+    }
+
     return value
   }
 }

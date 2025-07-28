@@ -18,6 +18,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
   #currentLanguage: CodeSnippetLanguage
   readonly #runners: Record<CodeSnippetLanguage, CodeRunner>
   readonly #snippets: Record<CodeSnippetLanguage, string>
+  readonly #variables: Record<string, string>
   readonly #contractManagerView: ContractManagerView
 
   private constructor(
@@ -31,6 +32,7 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     this.#snippets = Object.fromEntries(
       config.snippets.map((s) => [s.language, s.code]),
     ) as Record<CodeSnippetLanguage, string>
+    this.#variables = config.variables
     this.#currentLanguage = config.snippets[0].language
     this.#contractManagerView = contractManagerView
   }
@@ -99,6 +101,12 @@ export class CodeWorkflowExecutor extends BaseExecutor {
     const executionResult = await runner.run(
       this.#snippets[this.#currentLanguage],
       {
+        variables: {
+          name: 'variables',
+          serializable: true,
+          type: 'object',
+          value: this.#variables,
+        },
         contracts: {
           name: 'contracts',
           serializable: true,

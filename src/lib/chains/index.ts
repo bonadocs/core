@@ -14,6 +14,23 @@ export type ChainConfig = {
 
 export const supportedChains = new Map<number, ChainConfig>([
   [
+    1,
+    {
+      name: 'Ethereum',
+      chainId: 1,
+      networkId: 1,
+      imageUrl:
+        'https://res.cloudinary.com/dfkuxnesz/image/upload/v1721089362/Ethere_1_m62ob4.svg',
+      jsonRpcUrl: 'https://eth.llamarpc.com',
+      specApiConfigs: [
+        {
+          specApiType: 'etherscan',
+          specApiUrl: 'https://api.etherscan.io',
+        },
+      ],
+    },
+  ],
+  [
     56,
     {
       name: 'Binance Smart Chain',
@@ -31,18 +48,18 @@ export const supportedChains = new Map<number, ChainConfig>([
     },
   ],
   [
-    1,
+    1313161554,
     {
-      name: 'Ethereum',
-      chainId: 1,
-      networkId: 1,
+      name: 'Aurora',
+      chainId: 1313161554,
+      networkId: 1313161554,
       imageUrl:
-        'https://res.cloudinary.com/dfkuxnesz/image/upload/v1721089362/Ethere_1_m62ob4.svg',
-      jsonRpcUrl: 'https://eth.llamarpc.com',
+        'https://res.cloudinary.com/dfkuxnesz/image/upload/v1755635486/logo_xspayq.svg',
+      jsonRpcUrl: 'https://mainnet.aurora.dev',
       specApiConfigs: [
         {
           specApiType: 'etherscan',
-          specApiUrl: 'https://api.etherscan.io',
+          specApiUrl: 'https://aurorascan.dev',
         },
       ],
     },
